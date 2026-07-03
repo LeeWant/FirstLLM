@@ -349,3 +349,60 @@
 2. 用户创建基础目录结构。
 3. 用户开始手敲 `Status` 模块。
 4. 每完成一步后，把理解、问题和验证结果写入 `ProgressLog.md`。
+
+### 2026-07-03 16:13:19 +08:00
+
+阶段：第 0 章 重新建立最小工程
+
+完成内容：
+
+- 补全空的 `CMakeLists.txt`，写入最小 CMake 项目声明。
+- 声明 FirstLLM 是 C++ 项目，当前版本为 `0.1.0`。
+- 预留 `FIRSTLLM_BUILD_EXAMPLES` 和 `FIRSTLLM_BUILD_TESTS` 两个构建开关。
+- 创建基础目录结构，为 public header、源码实现、示例和测试预留位置。
+- 执行 CMake configure，验证最小工程声明可以被 CMake 正常读取。
+
+新增文件：
+
+- 无
+
+新增目录：
+
+- `include/`
+- `include/firstllm/`
+- `include/firstllm/core/`
+- `include/firstllm/runtime/`
+- `include/firstllm/backends/`
+- `src/`
+- `src/core/`
+- `src/runtime/`
+- `src/backends/`
+- `src/backends/cpu/`
+- `examples/`
+- `tests/`
+
+修改文件：
+
+- `CMakeLists.txt`
+- `ProgressLog.md`
+
+验证情况：
+
+- 已运行 CMake configure。
+- CMake 成功生成 `build/` 构建目录。
+- 当前还没有源码文件，因此本阶段只验证 configure，不进行 build。
+
+已知问题 / Bug：
+
+- 目前还没有 `firstllm` 库目标、example 或 test，这是第 0 章的预期状态。
+
+设计思考：
+
+- `CMakeLists.txt` 第一版只负责声明项目和构建开关，不提前加入源码目标，避免在还没有代码时制造额外复杂度。
+- 目录结构先行能让后续文件自然落到对应层次：`include/` 放接口，`src/` 放实现，`examples/` 放示例，`tests/` 放验证。
+
+下一步：
+
+1. 进入第 1 章，创建 `include/firstllm/core/status.h`。
+2. 创建 `src/core/status.cpp`。
+3. 更新 `CMakeLists.txt`，开始添加 `firstllm` 静态库目标。
