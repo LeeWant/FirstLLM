@@ -2,104 +2,110 @@
 
 ## 1. 项目定位
 
-FirstLLM 是一个基于 C++ 的极简大模型推理引擎实验项目。它的第一目标不是立刻追求极致性能，而是建立一套清晰、可扩展、可验证的推理引擎骨架，让后续可以逐步接入 CPU、CUDA、ROCm、NPU、WebGPU 等 backend，并继续扩展模型加载、KV cache、调度、量化、LoRA、服务化等能力。
+FirstLLM 是一个基于 C++20 的极简大模型推理引擎学习项目。它的第一目标不是立刻跑通真实大模型，也不是追求极致性能，而是用小步、可验证、可解释的方式建立一个推理引擎的骨架。
 
 一句话目标：
 
-> 先做一个小而稳的 C++ 推理运行时，再把模型、算子、backend、调度器和服务层一层层长出来。
+> 先做一个小而稳的 C++ 推理运行时，再把 tensor、backend、kernel、runtime、model loader、KV cache、sampler 和服务层一层层长出来。
 
-## 2. 参考架构与可借鉴点
+当前项目采用“从零手敲学习模式”：
 
-本项目参考了多个成熟推理系统的公开设计，但会刻意保持实现规模更小。
+- 用户亲手创建代码文件、测试文件并运行验证。
+- Agent 负责解释、检查、维护项目文档和进度日志。
+- 每个模块都先讲清楚职责和边界，再进入实现。
 
-### 2.1 ONNX Runtime: Execution Provider 思路
+## 2. 当前阶段
 
-ONNX Runtime 通过 Execution Provider 抽象不同硬件加速库。它会询问 provider 能处理哪些节点或子图，并按优先级选择 provider；如果 CUDA 不支持某个算子，可以回退到 CPU。
+当前阶段处于早期工程骨架和核心基础类型阶段。
 
-FirstLLM 借鉴点：
+已完成：
 
-- backend 不直接散落在 runtime 中，而是通过统一接口注册。
-- runtime 可以按优先级选择 backend。
-- backend 需要声明自己支持哪些算子、数据类型和设备。
-- CPU backend 永远作为最小可用 fallback。
+- CMake 最小工程。
+- 基础目录结构。
+- `Status` 错误处理模块。
+- `Status` 最小测试。
+- `firstllm` 静态库目标。
+- CTest 测试闭环。
 
-参考资料：
+下一步：
 
-- https://onnxruntime.ai/docs/execution-providers/
+- 创建 `Tensor` 基础类型。
+- 为 `Tensor` 增加最小测试。
 
-### 2.2 TensorRT-LLM: Executor、Scheduler、KVCacheManager、Sampler 分层
+当前关键文件：
 
-TensorRT-LLM 的高层入口负责模型加载、tokenization、detokenization 和 generate API；内部 executor 通过后台循环处理请求，并把调度、KV cache、模型执行、采样拆成独立组件。
+```text
+CMakeLists.txt
+include/firstllm/core/status.h
+src/core/status.cpp
+tests/status_test.cpp
+```
 
-FirstLLM 借鉴点：
+## 3. 参考架构与借鉴点
 
-- 推理流程不要写成一个巨大的函数。
-- 后续要把 `Scheduler`、`KVCacheManager`、`ModelExecutor`、`Sampler` 独立出来。
-- 先做同步单请求，接口上预留批处理和异步生成空间。
+FirstLLM 参考成熟推理系统的公开设计，但会保持实现规模更小。
 
-参考资料：
+### 3.1 ONNX Runtime: Execution Provider 思路
 
-- https://nvidia.github.io/TensorRT-LLM/architecture/overview.html
+借鉴点：
 
-### 2.3 vLLM: 请求调度与 KV cache 是核心资产
+- backend 通过统一接口注册。
+- runtime 可以按能力和优先级选择 backend。
+- CPU backend 作为最小可用 fallback。
 
-vLLM 的架构把 API server、engine core、GPU worker 分开。engine core 负责 scheduler、KV cache 管理和模型执行协调；GPU worker 负责权重加载、forward 和设备内存管理。它也强调统一配置对象，方便快速增加新功能。
+### 3.2 TensorRT-LLM: 分层执行
 
-FirstLLM 借鉴点：
+借鉴点：
 
-- 第一版可以单进程，但概念上保留 `Engine -> Scheduler -> Worker/Backend` 的路径。
-- KV cache 从一开始就要作为独立模块设计，避免和 attention kernel 绑死。
-- 配置集中在 `EngineConfig`，不要让后续每加一个功能就改一串构造函数。
+- 推理流程不要写成一个巨大函数。
+- 后续将 `Scheduler`、`KVCacheManager`、`ModelExecutor`、`Sampler` 拆成独立组件。
+- 先做同步单请求，再考虑异步和 batch。
 
-参考资料：
+### 3.3 vLLM: KV cache 与调度是核心
 
-- https://docs.vllm.ai/en/latest/design/arch_overview/
-- https://docs.vllm.ai/en/latest/design/paged_attention/
+借鉴点：
 
-### 2.4 llama.cpp: 本地、低依赖、C/C++、GGUF
+- 概念上保留 `Engine -> Scheduler -> Worker/Backend` 的路径。
+- KV cache 后续作为独立模块设计。
+- 配置集中到 `EngineConfig`，避免构造函数不断膨胀。
 
-llama.cpp 的目标是用较低门槛在多种硬件上本地运行大模型，使用 C/C++ 实现，支持 GGUF 模型生态，并拥有大量 examples、tools、tests。
+### 3.4 llama.cpp: 本地、低依赖、GGUF
 
-FirstLLM 借鉴点：
+借鉴点：
 
-- 起步阶段尽量少依赖，先保证 CMake 能构建、代码能跑。
-- 目录结构要给 examples、tests、tools 留位置。
-- 模型格式优先考虑 GGUF，因为它非常适合本地推理引擎学习和实验。
+- 起步阶段尽量少依赖。
+- 保留 examples、tests、tools 的工程位置。
+- 长期兼容 GGUF 模型生态。
 
-参考资料：
+## 4. 第一阶段范围
 
-- https://github.com/ggml-org/llama.cpp
-
-## 3. 第一阶段范围
-
-第一阶段不要急着完整跑通 Llama，而是先完成以下能力：
+第一阶段目标：
 
 - CMake 项目可构建。
 - 提供 `firstllm` 静态库。
-- 提供统一 backend 抽象。
+- 提供 `Status`、`Tensor`、`Device`、`Backend` 等核心类型。
 - 提供 CPU backend。
 - 提供最小 runtime `Engine`。
-- 提供最小 `Tensor`、`Status`、`Device` 等基础类型。
 - 提供 example 和 smoke test。
-- `FirstLLM.md` 持续记录设计决策、路线图和问题。
+- 每个核心节点都有最小验证。
 
 第一阶段暂不做：
 
-- 真正加载大模型权重。
-- 真正实现 Transformer forward。
-- 在线服务 API。
-- CUDA kernel。
-- 分布式推理。
+- 不加载真实大模型权重。
+- 不实现完整 Transformer forward。
+- 不做在线服务 API。
+- 不写 CUDA kernel。
+- 不做分布式推理。
 
-这样做的原因很现实：大模型推理引擎最容易失败的地方不是某一个 kernel，而是项目边界混乱。先把接口与目录立好，后面的每一步才有地方放。
+原因很简单：推理引擎最容易混乱的地方不是某个 kernel，而是模块边界。先把边界立稳，后面的每个功能才有地方放。
 
-## 4. 推荐架构
+## 5. 推荐架构
 
 ```text
-Application / CLI / Server
+Application / Examples / Tools
         |
         v
-FirstLLM Runtime
+Runtime
   - Engine
   - Scheduler              later
   - KVCacheManager         later
@@ -108,191 +114,181 @@ FirstLLM Runtime
         v
 Model Layer
   - ModelConfig            later
+  - GGUF Reader            later
   - ModelLoader            later
-  - Graph / Module         later
+  - Llama-like Model       later
         |
         v
 Backend Abstraction
   - BackendRegistry
   - Backend interface
-  - Device / capability
+  - Device / Capability
         |
         v
 Backend Implementations
   - CPU backend
   - CUDA backend           later
-  - ROCm backend           later
-  - NPU backend            later
         |
         v
-Kernels / Memory / Runtime APIs
+Kernels / Memory / Device APIs
 ```
 
-### 4.1 Backend 接口职责
+### 5.1 Core 层
 
-backend 应该回答三个问题：
+Core 层提供所有模块都会用到的基础语言：
 
-- 我是谁：`BackendInfo`，包含名称、设备类型、优先级。
-- 我能做什么：`Supports(OpKind, DType)`。
-- 我是否可用：`Initialize()` 与 `IsAvailable()`。
+- `Status`：表达成功或失败。
+- `Tensor`：表达数据、shape、dtype 和内存。
+- `Device`：表达计算设备。
+- `Backend`：表达硬件能力提供者。
 
-后续可以继续扩展：
+### 5.2 Backend 层
 
-- `Allocate()` / `Free()`：设备内存管理。
-- `Copy()`：Host 与 Device 数据搬运。
-- `Execute()`：执行单个 op 或 graph partition。
-- `Compile()`：把子图编译成 backend 内部可执行对象。
+backend 应回答三个问题：
 
-### 4.2 Runtime 职责
+- 我是谁：名称、设备类型、优先级。
+- 我能做什么：支持哪些 op 和 dtype。
+- 我是否可用：初始化是否成功、当前设备是否可用。
 
-`Engine` 是用户侧入口。它不应该知道 CUDA kernel 的细节，也不应该知道 GGUF 文件的细节。它应该负责编排：
+### 5.3 Runtime 层
 
-- 注册 backend。
-- 初始化 backend。
-- 读取配置。
-- 接收请求。
-- 选择调度路径。
-- 返回生成结果。
+`Engine` 是用户侧入口。它负责编排，不应直接知道 CUDA kernel 细节，也不应直接解析 GGUF 文件。
 
-### 4.3 CPU backend 的定位
+### 5.4 CPU backend 定位
 
-CPU backend 是项目的地基。哪怕性能很弱，也要保证它：
+CPU backend 是 correctness baseline。即使性能一般，也必须：
 
 - 永远可构建。
-- 不依赖第三方库。
-- 能作为所有算子的正确性参考。
-- 在后续 CUDA/NPU backend 出问题时可以做对照测试。
+- 尽量不依赖第三方库。
+- 能作为 CUDA/NPU backend 的对照。
 
-## 5. 初始目录结构
+## 6. 目录结构
 
-当前建议搭建如下结构：
+当前和近期目标目录：
 
 ```text
 FirstLLM/
   CMakeLists.txt
   FirstLLM.md
+  ProjectNodes.md
+  ProgressLog.md
+  agent.md
+  EnvironmentSetup.md
   include/
     firstllm/
-      firstllm.h
-      backends/
-        cpu_backend.h
       core/
-        backend.h
         status.h
         tensor.h
+        backend.h
+      backends/
+        cpu_backend.h
       runtime/
         engine.h
   src/
+    core/
+      status.cpp
+      tensor.cpp
+      backend.cpp
     backends/
       cpu/
         cpu_backend.cpp
-    core/
-      backend.cpp
-      status.cpp
-      tensor.cpp
     runtime/
       engine.cpp
   examples/
-    firstllm_info.cpp
   tests/
-    smoke.cpp
+    status_test.cpp
 ```
 
-### 5.1 如何构建
+## 7. 构建与测试
 
-安装 CMake 和任意支持 C++20 的编译器后，可以在项目根目录执行：
+推荐在项目根目录执行：
 
 ```powershell
-cmake -S . -B build
-cmake --build build
-ctest --test-dir build
+powershell -ExecutionPolicy Bypass -NoProfile -Command ". .\scripts\firstllm-env.ps1; cmake -S . -B build -G 'Visual Studio 17 2022' -A x64"
+powershell -ExecutionPolicy Bypass -NoProfile -Command ". .\scripts\firstllm-env.ps1; cmake --build build --config Debug"
+powershell -ExecutionPolicy Bypass -NoProfile -Command ". .\scripts\firstllm-env.ps1; ctest --test-dir build -C Debug --output-on-failure"
 ```
 
-示例程序构建完成后通常位于：
+当前已验证：
 
 ```text
-build/examples/firstllm_info
+CTest: 100% tests passed, 0 tests failed out of 1
 ```
 
-在 Windows + Visual Studio 生成器下，实际路径可能包含 `Debug` 或 `Release` 子目录。
-
-## 6. 路线图
+## 8. 路线图
 
 ### M0: 工程骨架
 
-- 完成 CMake。
-- 完成 `Status`、`Tensor`、`Backend`、`Engine`。
-- 完成 CPU backend 注册和初始化。
-- 完成 example 和 smoke test。
+- CMake。
+- 基础目录。
+- `Status`。
+- 最小测试闭环。
+
+当前状态：进行中，`Status` 已完成，下一步是 `Tensor`。
 
 ### M1: 基础张量与 CPU 算子
 
-- 支持 float32 tensor。
-- 实现 `add`、`matmul`、`softmax`、`rms_norm`。
-- 为每个算子写 CPU 正确性测试。
+- `Tensor`。
+- `add`。
+- `matmul`。
+- `softmax`。
+- `rms_norm`。
 
-### M2: 模型格式与配置
+### M2: Backend 与 Runtime
 
-- 增加 `ModelConfig`。
-- 增加最小 GGUF metadata reader。
-- 暂时只读模型结构和 tensor metadata，不急着完整加载全部权重。
+- `Backend` 抽象。
+- CPU backend。
+- `Engine` 最小入口。
+- example 和 smoke test。
 
-### M3: Tiny Transformer
+### M3: 模型格式与配置
 
-- 先支持一个极小 Llama-like block。
-- 支持 embedding、rope、attention、mlp、lm_head。
-- 用小尺寸随机权重跑通 forward。
+- `ModelConfig`。
+- GGUF metadata reader。
+- tensor metadata。
 
-### M4: 自回归生成
+### M4: Tiny Transformer
 
-- 增加 tokenizer 接口。
-- 增加 KV cache。
-- 增加 greedy sampling、top-k、top-p、temperature。
-- 跑通单请求文本生成。
+- embedding。
+- rope。
+- attention。
+- MLP。
+- lm head。
 
-### M5: CUDA backend
+### M5: 自回归生成
 
-- backend 接口增加设备内存、copy、kernel dispatch。
-- 先实现少量核心算子。
-- 每个 CUDA 算子都要和 CPU backend 做数值对照。
+- tokenizer。
+- KV cache。
+- sampler。
+- 文本生成闭环。
 
-### M6: 服务化与高级功能
+### M6: CUDA 与高级能力
 
-- 异步请求队列。
-- batch scheduler。
-- streaming output。
+- CUDA backend。
+- CUDA kernel 对照测试。
+- streaming。
 - OpenAI-compatible API。
 - LoRA。
 - 量化。
-- speculative decoding。
 
-## 7. 当前设计决策
+## 9. 当前设计决策
 
 - 语言：C++20。
 - 构建：CMake。
-- 第三方依赖：第一阶段不引入。
+- 第三方依赖：早期不引入。
 - 初始 backend：CPU。
-- backend 选择策略：名称匹配 + 优先级排序。
-- 模型目标：优先 Llama-like decoder-only 模型。
-- 模型格式倾向：GGUF，但先把 loader 接口留出来。
+- 测试策略：先使用标准库 `assert` 和 CTest。
+- 学习策略：用户手敲代码，Agent 维护文档与日志。
+- 模型方向：Llama-like decoder-only。
+- 模型格式：长期倾向 GGUF。
 
-## 8. 已确认的项目方向
-
-以下方向已经确认，会作为 M1 之后的路线依据：
-
-1. 第一批支持 decoder-only 文本模型，优先面向 Llama/Qwen/Mistral 这类自回归生成模型；后续预留多模态扩展空间。
-2. 第一块硬件 backend 优先做 CPU，同时 CUDA 要同步设计接口和最小实现路径。
-3. 项目定位偏学习型代码，代码应重视清晰性、注释、阶段性文档和可验证的小步骤。
-4. 模型格式直接兼容 GGUF，不先发明自定义权重格式。
-
-对应的详细项目节点、章节进度和文件职责见 `ProjectNodes.md`。
-
-## 9. 编码原则
+## 10. 编码原则
 
 - 所有模块先有接口，再有实现。
-- CPU backend 是 correctness baseline。
+- 每个核心模块都要有最小测试。
+- CPU 是正确性基线。
 - backend 之间不要互相依赖。
 - runtime 不直接包含硬件细节。
-- 每加一个算子，至少有一个 CPU 测试。
-- 每加一个 backend，必须先声明 capability。
-- 项目每进入一个 milestone，都更新本文件。
+- model loader 不写进 `Engine`。
+- 不过早优化，不提前引入复杂抽象。
+- 每完成一个节点，由 Agent 更新 `ProgressLog.md`。

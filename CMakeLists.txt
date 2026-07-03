@@ -15,3 +15,19 @@ target_include_directories(firstllm
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+
+
+if(FIRSTLLM_BUILD_TESTS)
+  enable_testing()
+
+  add_executable(firstllm_status_test
+    tests/status_test.cpp
+  )
+
+  target_link_libraries(firstllm_status_test
+    PRIVATE
+      firstllm
+  )
+
+  add_test(NAME firstllm_status_test COMMAND firstllm_status_test)
+endif()

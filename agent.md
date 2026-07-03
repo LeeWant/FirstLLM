@@ -2,39 +2,59 @@
 
 ## 1. 文件目的
 
-本文件用于指导参与 FirstLLM 项目的智能体或协作者如何工作。它不是项目设计文档本身，而是“进入项目后的工作协议”。
+本文件是 FirstLLM 的协作协议。它说明后续智能体或协作者进入项目后应该如何阅读、如何指导、如何维护文档，以及哪些事情不应该越界代劳。
 
-当你开始处理 FirstLLM 的任何任务时，应先阅读并遵守本文，再根据任务需要查看其他文档和代码。
+当前项目是一个学习型 C++ 推理引擎项目。用户的目标不是最快得到完整代码，而是亲手理解一个推理引擎如何从 CMake、基础类型、测试、backend、runtime、kernel 一步步长出来。
 
-## 2. 项目定位
+## 2. 当前协作模式
 
-FirstLLM 是一个基于 C++ 的极简大模型推理引擎学习项目。
+项目当前采用“用户手敲代码，Agent 维护路线与文档”的模式。
+
+用户负责：
+
+- 手动创建和修改学习路径中的代码文件。
+- 运行构建、测试和示例命令。
+- 把测试结果或遇到的问题反馈给 Agent。
+- 在关键设计选择上做最终确认。
+
+Agent 负责：
+
+- 解释每个文件为什么存在、属于哪一层、暂时不负责什么。
+- 给出可手敲的最小代码片段和验证命令。
+- 在用户完成后读取实际文件，帮助检查问题。
+- 维护 `FirstLLM.md`、`ProjectNodes.md`、`agent.md` 和 `ProgressLog.md`。
+- 根据用户反馈把进度、测试结果和设计思考写入日志。
+
+除非用户明确要求，Agent 不应直接生成或改写学习路径中的 C++ 代码文件。需要做教学演示时，应先说明“请你手敲以下内容”，而不是直接代写。
+
+## 3. 项目定位
+
+FirstLLM 是一个基于 C++20 和 CMake 的极简大模型推理引擎学习项目。
 
 当前已确认方向：
 
-- 第一批模型支持 decoder-only 文本生成模型。
-- 后续预留多模态扩展空间。
-- 硬件路线为 CPU 优先，同时 CUDA 同步设计和逐步实现。
-- 项目更偏学习型代码，清晰性、可解释性和阶段性验证优先于极限性能。
-- 模型格式直接兼容 GGUF。
+- 第一批模型面向 decoder-only 文本生成模型。
+- CPU 路径优先，CUDA 后续作为可选 backend 逐步设计和实现。
+- 项目重视清晰性、边界感、测试和阶段性记录，优先级高于性能优化。
+- 模型格式长期倾向兼容 GGUF，但不会在早期急着完整加载大模型。
 
 核心目标：
 
-> 先建立清晰、可扩展、可测试的推理引擎骨架，再逐步实现算子、模型加载、KV cache、采样、CUDA backend 和服务化能力。
+> 先建立清晰、可扩展、可测试的 C++ 推理运行时骨架，再逐步实现 tensor、backend、kernel、model loader、KV cache、sampler 和服务化能力。
 
-## 3. 进入项目后的阅读顺序
+## 4. 阅读顺序
 
-每次开始较大的修改前，应按以下顺序理解项目：
+每次开始较大的工作前，按以下顺序阅读：
 
-1. `FirstLLM.md`：了解项目总目标、架构分层和设计决策。
-2. `ProjectNodes.md`：了解当前阶段、章节规划和后续实现顺序。
-3. `ProgressLog.md`：了解实际进度、已完成工作、已知问题和下一步。
-4. `agent.md`：确认工作方式、文件组织和进度记录要求。
-5. 相关代码文件：只阅读与当前任务相关的模块，避免无关重构。
+1. `FirstLLM.md`：项目定位、总体架构、长期路线。
+2. `ProjectNodes.md`：当前章节、下一步节点、每个文件的学习目标。
+3. `ProgressLog.md`：实际完成了什么、验证结果是什么、下一步是什么。
+4. `agent.md`：确认协作边界和文档维护规则。
+5. 相关代码文件：只阅读和当前节点有关的文件。
 
-## 4. 项目架构原则
+## 5. 架构边界
 
-FirstLLM 的架构按层组织：
+FirstLLM 按层组织：
 
 ```text
 Application / Examples / Tools
@@ -42,7 +62,6 @@ Application / Examples / Tools
         v
 Runtime
   - Engine
-  - Generation
   - Scheduler          later
   - Sampler            later
         |
@@ -51,7 +70,6 @@ Model Layer
   - ModelConfig        later
   - GGUF Reader        later
   - ModelLoader        later
-  - Llama-like Model   later
   - KV Cache           later
         |
         v
@@ -70,133 +88,81 @@ Backend Implementations
 Kernels / Memory / Device APIs
 ```
 
-设计边界：
+边界规则：
 
-- `Engine` 是用户侧入口，负责编排，不应直接实现算子或解析 GGUF。
-- `Backend` 负责声明设备、可用性和 capability，不应包含模型业务逻辑。
-- `Kernel` 负责具体数值计算，不应决定请求调度。
-- `Model Layer` 负责模型结构、权重索引和 GGUF 解析，不应管理用户请求队列。
-- CPU backend 是 correctness baseline，CUDA backend 的结果应与 CPU 对照。
+- `core/` 放基础类型，例如 `Status`、`Tensor`、`Device`、`Backend`。
+- `runtime/` 放用户请求、生成流程、调度、采样等运行时接口。
+- `backends/` 放具体 backend 的公开接口，例如 CPU、CUDA。
+- `kernels/` 放具体数值计算接口和实现。
+- `model/` 放模型配置、GGUF reader、权重索引、KV cache。
+- `examples/` 放学习者可运行示例。
+- `tests/` 放小而明确的行为验证。
 
-## 5. 当前文件结构
+## 6. 当前进度
 
-```text
-FirstLLM/
-  agent.md
-  FirstLLM.md
-  ProjectNodes.md
-  ProgressLog.md
-  EnvironmentSetup.md
-  scripts/
-    check-env.ps1
-    firstllm-env.ps1
-```
+截至当前协作状态：
 
-当前仓库处于“从零手敲学习模式”。此前由智能体生成的代码骨架、构建配置和构建产物已经清理，用户将按照 `ProjectNodes.md` 手动重建每个文件。
+- 第 0 章最小工程已完成：`CMakeLists.txt`、基础目录结构、CMake configure 已跑通。
+- 第 1 章 `Status` 模块已完成：`status.h`、`status.cpp`、`firstllm` 静态库目标。
+- 第 1 章 `Status` 测试已完成：用户手动创建 `tests/status_test.cpp`，并通过 CTest。
+- 下一步进入第 2 章：`Tensor` 基础类型。
 
-后续由用户按章节手动新增：
+当前重要代码文件：
 
 ```text
 CMakeLists.txt
-include/
-src/
-examples/
-tests/
+include/firstllm/core/status.h
+src/core/status.cpp
+tests/status_test.cpp
 ```
 
-## 6. 文件职责规则
+## 7. 标准工作流程
 
-新增文件时，应遵守以下职责边界：
+每个节点按以下顺序推进：
 
-- `include/firstllm/core/`：基础类型，例如 `Status`、`Tensor`、`Device`、`Backend`。
-- `include/firstllm/runtime/`：用户请求、生成流程、调度器、采样器等 runtime 层接口。
-- `include/firstllm/backends/`：具体 backend 的 public 接口，例如 CPU、CUDA。
-- `include/firstllm/kernels/`：算子接口，例如 add、matmul、softmax。
-- `include/firstllm/model/`：模型配置、GGUF reader、权重索引、KV cache、Llama-like 模型。
-- `include/firstllm/tokenizer/`：tokenizer 抽象与实现入口。
-- `src/`：与 include 对应的实现文件。
-- `examples/`：面向学习者的最小可运行示例。
-- `tests/`：验证核心行为的小测试。
-- `tools/`：辅助检查工具，例如 GGUF inspect。
-- `docs/`：术语、学习笔记、设计说明。
+1. 说明本节点属于哪一层。
+2. 说明它解决什么问题。
+3. 说明它暂时不解决什么问题。
+4. 用户手动创建或修改文件。
+5. 用户运行最小验证命令。
+6. Agent 根据用户反馈检查结果。
+7. Agent 更新 `ProgressLog.md`。
+8. 必要时 Agent 更新 `ProjectNodes.md` 或 `FirstLLM.md`。
 
-## 7. 编码工作原则
+测试节点同样遵守这个流程。Agent 可以给出测试代码，但默认应让用户手动创建测试文件并运行测试。
 
-FirstLLM 是学习型项目，因此代码应优先做到：
+## 8. 文档维护规则
 
-- 清晰：先写容易理解的版本，再谈优化。
-- 可测：每个核心功能都要有小测试。
-- 可解释：重要接口要有简短注释说明用途和边界。
-- 小步提交：一次任务只推进一个清晰节点。
-- 少依赖：第一阶段尽量只使用 C++ 标准库。
-- 不过早抽象：只有当重复和复杂度真的出现时再抽象。
+以下文档由 Agent 维护：
 
-新增模块时，应优先采用以下顺序：
+- `FirstLLM.md`：项目设计、长期架构、阶段范围。
+- `ProjectNodes.md`：章节路线、节点状态、下一步任务。
+- `agent.md`：协作协议、工作边界。
+- `ProgressLog.md`：实际进度、验证结果、章节索引。
 
-1. 写接口。
-2. 写最小实现。
-3. 写测试或 example。
-4. 更新 `ProjectNodes.md` 中对应节点状态或说明。
-5. 更新 `ProgressLog.md`。
+用户可以提出修改建议和方向调整，Agent 负责把这些约定写入文档。
 
-## 8. 进度管理规则
+## 9. 日志规则
 
-`ProgressLog.md` 是项目过程记录文件。每完成一个明确任务，都应追加一条日志。
-
-日志必须记录：
+`ProgressLog.md` 应按章节建立索引，方便未来检索。每条日志至少包含：
 
 - 时间。
-- 当前阶段。
+- 阶段。
 - 完成内容。
-- 新增文件。
+- 新增文件或目录。
 - 修改文件。
 - 验证情况。
-- 已知问题 / Bug。
+- 已知问题。
 - 设计思考。
 - 下一步。
 
-如果任务只是很小的文本修正，也可以简化记录，但涉及架构、代码、测试、目录结构或路线调整时必须记录。
+如果用户完成了代码或测试，日志中应明确写出“用户手动完成”。如果 Agent 只维护日志，也应明确区分。
 
-追加日志时不要覆盖历史记录。新的日志应放在 `## 3. 项目日志` 下方，按时间从旧到新排列。
+## 10. 沟通原则
 
-## 9. 当前推荐下一步
-
-根据当前进度，下一步应进入 M1：
-
-1. 按 `ProjectNodes.md` 第 0 章手动创建 `CMakeLists.txt`。
-2. 手动创建 `include/`、`src/`、`examples/`、`tests/` 等空目录。
-3. 按第 1 章开始手敲 `Status` 模块。
-4. 每完成一个文件或节点，都更新 `ProgressLog.md`。
-
-不要立刻恢复完整代码骨架，也不要一次性生成所有文件。项目当前最重要的是让用户亲手理解每个文件为什么存在。
-
-## 10. 当前环境状态
-
-截至 `2026-07-03 15:01:45 +08:00`，FirstLLM 的 Windows 开发环境已经完成基础配置：
-
-- Git 已可通过项目环境脚本识别。
-- CMake 已安装并可通过项目环境脚本识别。
-- Visual Studio 2022 Build Tools 已安装，MSVC `cl` 可通过项目环境脚本识别。
-- Ninja 可通过 Visual Studio Build Tools 附带路径识别。
-- CMake configure、build、ctest 和示例程序运行均已验证通过。
-- CUDA / `nvcc` 尚未安装；当前阶段不强制需要。
-
-后续执行构建前，建议先运行：
-
-```powershell
-powershell -ExecutionPolicy Bypass -NoProfile -Command ". .\scripts\firstllm-env.ps1; .\scripts\check-env.ps1"
-```
-
-如果普通 PowerShell 找不到工具，优先使用 `scripts/firstllm-env.ps1` 刷新当前会话环境，而不是直接判断工具未安装。
-
-## 11. 与用户沟通方式
-
-用户正在学习推理引擎，表达可能是高层、模糊或探索性的。协作者应主动补足结构，但不要跳过解释。
-
-工作时应做到：
-
-- 先把模糊目标拆成清晰节点。
-- 不确定但不阻塞的问题，可以先做合理假设并记录。
-- 会影响路线的关键问题，应向用户确认。
-- 每个新增设计都解释“为什么需要它”。
-- 每次完成后给出短小、明确的成果总结和下一步建议。
+- 先指导，再动手。
+- 先小步验证，再进入下一章。
+- 解释设计边界，不只给代码。
+- 不为了速度跳过测试。
+- 不为了完整性提前引入复杂抽象。
+- 当用户指出流程问题时，优先修正文档和协作方式。
