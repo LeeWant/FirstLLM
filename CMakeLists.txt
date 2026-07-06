@@ -20,6 +20,16 @@ target_include_directories(firstllm
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+if(FIRSTLLM_BUILD_EXAMPLES)
+  add_executable(firstllm_info
+    examples/firstllm_info.cpp
+  )
+
+  target_link_libraries(firstllm_info
+    PRIVATE
+      firstllm
+  )
+endif()
 
 if(FIRSTLLM_BUILD_TESTS)
   enable_testing()
@@ -46,7 +56,7 @@ if(FIRSTLLM_BUILD_TESTS)
 
   add_test(NAME firstllm_tensor_test COMMAND firstllm_tensor_test)
 
-    add_executable(firstllm_backend_test
+  add_executable(firstllm_backend_test
     tests/backend_test.cpp
   )
 
@@ -78,4 +88,15 @@ if(FIRSTLLM_BUILD_TESTS)
   )
 
   add_test(NAME firstllm_engine_test COMMAND firstllm_engine_test)
+
+  add_executable(firstllm_smoke_test
+    tests/smoke.cpp
+  )
+
+  target_link_libraries(firstllm_smoke_test
+    PRIVATE
+      firstllm
+  )
+
+  add_test(NAME firstllm_smoke_test COMMAND firstllm_smoke_test)
 endif()

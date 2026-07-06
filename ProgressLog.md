@@ -22,6 +22,7 @@
 | 第 3 章：Backend 抽象 | 已完成 | 2026-07-06 14:00:30 |
 | 第 4 章：CPU Backend | 已完成 | 2026-07-06 14:24:24 |
 | 第 5 章：Engine Runtime | 已完成 | 2026-07-06 14:55:20 |
+| 第 6 章：示例程序和 smoke test | 已完成 | 2026-07-06 15:16:32 |
 | 文档与协作流程 | 已更新 | 2026-07-03 17:32:18 |
 
 后续新增日志时，应放到对应章节下，并同步更新本索引。
@@ -547,7 +548,62 @@
 
 - 进入第 6 章，创建总入口、示例程序和 smoke test。
 
-## 11. 文档与协作流程日志
+## 11. 第 6 章：示例程序和 smoke test
+
+### 2026-07-06 15:16:32 +08:00
+
+章节 / 阶段：第 6 章 总入口、示例程序和 smoke test
+
+完成内容：
+
+- 用户已手动创建 `include/firstllm/firstllm.h`。
+- 用户已手动创建 `examples/firstllm_info.cpp`。
+- 用户已将 `firstllm_info` 示例程序接入 CMake。
+- 用户已手动创建 `tests/smoke.cpp`。
+- 用户已将 `firstllm_smoke_test` 接入 CMake 和 CTest。
+- 总入口 header 已能统一包含 Status、Tensor、Backend、CpuBackend 和 Engine。
+- 示例程序已能初始化 Engine 并打印选中的 backend。
+- smoke test 已能通过统一 header 走通 Engine、Backend 和 Tensor 基础路径。
+- Agent 检查文件后重新执行 configure、build、ctest 和示例程序，确认闭环通过。
+
+新增文件：
+
+- `include/firstllm/firstllm.h`
+- `examples/firstllm_info.cpp`
+- `tests/smoke.cpp`
+
+修改文件：
+
+- `CMakeLists.txt`
+- `ProgressLog.md`
+
+验证情况：
+
+- CMake configure 成功。
+- CMake build 成功。
+- CTest 运行成功。
+- 测试结果为 `100% tests passed, 0 tests failed out of 6`。
+- `firstllm_status_test`、`firstllm_tensor_test`、`firstllm_backend_test`、`firstllm_cpu_backend_test`、`firstllm_engine_test` 与 `firstllm_smoke_test` 均通过。
+- 总测试时间为 `0.08 sec`。
+- `firstllm_info.exe` 运行成功，输出 `FirstLLM initialized` 和 `Selected backend: cpu`。
+
+已知问题 / Bug：
+
+- Codex 沙箱内执行 MSBuild 时仍会在文件跟踪阶段遇到 `拒绝访问`。
+- 使用外部执行权限重新运行相同 build 命令后构建成功，说明该问题与当前代码无关，更像是构建工具访问权限限制。
+- 当前示例只验证 runtime 和 backend 选择路径，不执行真实数值算子。
+
+设计思考：
+
+- `firstllm/firstllm.h` 作为统一 public header，减少外部用户需要知道的内部头文件路径。
+- `firstllm_info` 是给人直接运行看的示例，`smoke.cpp` 是给 CTest 自动验证的系统级小闭环。
+- 第 6 章完成后，项目已经有从 public header 到 Engine、Backend、Tensor 的最小可用路径。
+
+下一步：
+
+- 进入第 7 章，创建 CPU add 算子。
+
+## 12. 文档与协作流程日志
 
 ### 2026-07-03 17:32:18 +08:00
 
