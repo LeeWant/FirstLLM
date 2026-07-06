@@ -18,7 +18,7 @@
 | 项目方向与环境 | 已完成基础配置 | 2026-07-03 14:32:57 到 15:09:16 |
 | 第 0 章：重新建立最小工程 | 已完成 | 2026-07-03 16:13:19 |
 | 第 1 章：Status 错误处理 | 已完成 | 2026-07-03 17:24:39 |
-| 第 2 章：Tensor 基础类型 | 下一步 | 尚未开始 |
+| 第 2 章：Tensor 基础类型 | 已完成 | 2026-07-06 11:02:33 |
 | 文档与协作流程 | 已更新 | 2026-07-03 17:32:18 |
 
 后续新增日志时，应放到对应章节下，并同步更新本索引。
@@ -332,17 +332,56 @@
 
 ## 7. 第 2 章：Tensor 基础类型
 
-当前状态：尚未开始。
+### 2026-07-06 11:02:33 +08:00
 
-计划文件：
+章节 / 阶段：第 2 章 Tensor 基础类型与测试
+
+完成内容：
+
+- 用户已手动创建 `include/firstllm/core/tensor.h`。
+- 用户已手动创建 `src/core/tensor.cpp`。
+- 用户已将 `src/core/tensor.cpp` 接入 `firstllm` 静态库目标。
+- 用户已手动创建 `tests/tensor_test.cpp`。
+- 用户已将 `firstllm_tensor_test` 接入 CMake 和 CTest。
+- `TensorShape` 已支持 rank、dim 和元素数量查询。
+- `Tensor` 已支持 dtype、shape、元素数量、字节数量和 raw byte data 访问。
+- Agent 检查文件后重新执行 configure、build 和 ctest，确认测试闭环通过。
+
+新增文件：
 
 - `include/firstllm/core/tensor.h`
 - `src/core/tensor.cpp`
 - `tests/tensor_test.cpp`
 
+修改文件：
+
+- `CMakeLists.txt`
+- `ProgressLog.md`
+
+验证情况：
+
+- CMake configure 成功。
+- CMake build 成功。
+- CTest 运行成功。
+- 测试结果为 `100% tests passed, 0 tests failed out of 2`。
+- `firstllm_status_test` 与 `firstllm_tensor_test` 均通过。
+- 总测试时间为 `0.03 sec`。
+
+已知问题 / Bug：
+
+- 在 Codex 沙箱内执行 MSBuild 时，曾遇到 MSBuild 文件跟踪阶段 `拒绝访问`。
+- 使用外部执行权限重新运行相同 build 命令后构建成功，说明该问题与当前代码无关，更像是构建工具访问权限限制。
+- 当前 `TensorShape::num_elements()` 对空 shape 返回 `1`，这符合 scalar tensor 的常见约定；后续如需要可专门补充 scalar 测试。
+
+设计思考：
+
+- 第一版 `Tensor` 只表达 `dtype + shape + host raw bytes`，不提前引入 GPU memory、stride、view 或量化布局。
+- 先让数据容器稳定，后续 CPU 算子、backend 和 runtime 才有统一的数据接口。
+- `DTypeSize()`、`TensorShape::num_elements()` 和 `Tensor::byte_size()` 建立了 shape、dtype 与内存大小之间的基本关系。
+
 下一步：
 
-- 先创建 `include/firstllm/core/tensor.h`。
+- 进入第 3 章，创建 `Backend` 抽象。
 
 ## 8. 文档与协作流程日志
 

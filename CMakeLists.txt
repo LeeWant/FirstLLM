@@ -8,6 +8,7 @@ option(FIRSTLLM_BUILD_TESTS "Build FirstLLM tests" ON)
 add_library(firstllm STATIC
   src/core/status.cpp
   src/core/tensor.cpp
+  src/core/backend.cpp
 )
 
 target_compile_features(firstllm PUBLIC cxx_std_20)
@@ -42,4 +43,15 @@ if(FIRSTLLM_BUILD_TESTS)
   )
 
   add_test(NAME firstllm_tensor_test COMMAND firstllm_tensor_test)
+
+    add_executable(firstllm_backend_test
+    tests/backend_test.cpp
+  )
+
+  target_link_libraries(firstllm_backend_test
+    PRIVATE
+      firstllm
+  )
+
+  add_test(NAME firstllm_backend_test COMMAND firstllm_backend_test)
 endif()

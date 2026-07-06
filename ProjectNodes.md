@@ -16,7 +16,8 @@
 第 0 章：重新建立最小工程              已完成
 第 1 章：Status 错误处理               已完成
 第 1 章补充：Status 测试               已完成
-第 2 章：Tensor 基础类型               下一步
+第 2 章：Tensor 基础类型               已完成
+第 3 章：Backend 抽象                  下一步
 ```
 
 当前已存在的重要文件：
@@ -24,8 +25,11 @@
 ```text
 CMakeLists.txt
 include/firstllm/core/status.h
+include/firstllm/core/tensor.h
 src/core/status.cpp
+src/core/tensor.cpp
 tests/status_test.cpp
+tests/tensor_test.cpp
 ```
 
 当前已验证：
@@ -33,7 +37,7 @@ tests/status_test.cpp
 ```text
 CMake configure 成功
 CMake build 成功
-CTest: 100% tests passed, 0 tests failed out of 1
+CTest: 100% tests passed, 0 tests failed out of 2
 ```
 
 ## 3. 标准学习流程
@@ -155,7 +159,7 @@ Core
 
 ## 7. 第 2 章：Tensor 基础类型
 
-状态：下一步。
+状态：已完成。
 
 本章目标是建立 FirstLLM 的最小数据容器。大模型中的 token、权重、激活值、logits 最终都会变成 tensor，所以这一章是后续算子的地基。
 
@@ -187,6 +191,11 @@ Core
 - 不做 view。
 - 不做量化 tensor。
 
+完成情况：
+
+- 用户已手动创建该文件。
+- 已定义 `DType`、`TensorShape` 和最小 `Tensor` 接口。
+
 ### 2.2 创建 `src/core/tensor.cpp`
 
 作用：
@@ -200,6 +209,11 @@ Core
 - shape 和 memory size 的关系。
 - dtype 为什么必须成为 tensor 的一部分。
 - 第一版 tensor 越简单，后续越容易验证。
+
+完成情况：
+
+- 用户已手动创建该文件。
+- 已实现 dtype byte size、shape 元素数量计算和 tensor host memory 分配。
 
 ### 2.3 创建 `tests/tensor_test.cpp`
 
@@ -215,9 +229,15 @@ Core
 - 不测试 GPU。
 - 不测试复杂内存布局。
 
+完成情况：
+
+- 用户已手动创建该文件。
+- 已接入 CMake 和 CTest。
+- 当前 `ctest` 结果为 `100% tests passed, 0 tests failed out of 2`。
+
 ## 8. 第 3 章：Backend 抽象
 
-状态：未开始。
+状态：下一步。
 
 目标文件：
 
