@@ -25,6 +25,7 @@
 | 第 6 章：示例程序和 smoke test | 已完成 | 2026-07-06 15:16:32 |
 | 第 7 章：CPU add 算子 | 已完成 | 2026-07-06 16:13:55 |
 | 第 8 章：CPU matmul 算子 | 已完成 | 2026-07-06 16:31:05 |
+| 第 9 章：softmax 与 rms_norm | 进行中 | 2026-07-06 16:54:02 softmax 已完成 |
 | 文档与协作流程 | 已更新 | 2026-07-03 17:32:18 |
 
 后续新增日志时，应放到对应章节下，并同步更新本索引。
@@ -711,7 +712,61 @@
 
 - 进入第 9 章，创建 softmax 与 rms_norm。
 
-## 14. 文档与协作流程日志
+## 14. 第 9 章：softmax 与 rms_norm
+
+### 2026-07-06 16:54:02 +08:00
+
+章节 / 阶段：第 9 章 softmax 节点
+
+完成内容：
+
+- 用户已手动创建 `include/firstllm/kernels/cpu/softmax.h`。
+- 用户已手动创建 `src/kernels/cpu/softmax.cpp`。
+- 用户已将 `src/kernels/cpu/softmax.cpp` 接入 `firstllm` 静态库目标。
+- 用户已手动创建 `tests/cpu_softmax_test.cpp`。
+- 用户已将 `firstllm_cpu_softmax_test` 接入 CMake 和 CTest。
+- `CpuSoftmaxLastDim` 已支持对最后一维执行 `float32` softmax。
+- `CpuSoftmaxLastDim` 已使用 max-subtraction 处理数值稳定性。
+- 测试已覆盖普通 softmax 结果、每行归一化、`1000` 输入的稳定性，以及空输出、dtype 错误和 shape 错误路径。
+- Agent 检查文件后重新执行 configure、build 和 ctest，确认 softmax 节点通过。
+
+新增文件：
+
+- `include/firstllm/kernels/cpu/softmax.h`
+- `src/kernels/cpu/softmax.cpp`
+- `tests/cpu_softmax_test.cpp`
+
+修改文件：
+
+- `CMakeLists.txt`
+- `ProgressLog.md`
+
+验证情况：
+
+- CMake configure 成功。
+- CMake build 成功。
+- CTest 运行成功。
+- 测试结果为 `100% tests passed, 0 tests failed out of 9`。
+- `firstllm_cpu_softmax_test` 与此前全部测试均通过。
+- 总测试时间为 `0.09 sec`。
+
+已知问题 / Bug：
+
+- Codex 沙箱内执行 MSBuild 时仍会在文件跟踪阶段遇到 `拒绝访问`。
+- 使用外部执行权限重新运行相同 build 命令后构建成功，说明该问题与当前代码无关，更像是构建工具访问权限限制。
+- 当前 `CpuSoftmaxLastDim` 只支持 `float32`，不支持 mask、temperature、in-place API 或非连续内存布局。
+
+设计思考：
+
+- softmax 是 logits 到概率分布的基础算子，后续 sampler 会依赖这一层语义。
+- max-subtraction 是必要的数值稳定处理，避免直接计算 `exp(1000)` 这类溢出场景。
+- 当前接口继续沿用调用者提供 output tensor 的模式，保持内存规划职责清楚。
+
+下一步：
+
+- 继续第 9 章，创建 RMSNorm。
+
+## 15. 文档与协作流程日志
 
 ### 2026-07-03 17:32:18 +08:00
 

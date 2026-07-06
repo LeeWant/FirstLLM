@@ -23,7 +23,7 @@
 第 6 章：示例程序和 smoke test         已完成
 第 7 章：CPU add 算子                  已完成
 第 8 章：CPU matmul 算子               已完成
-第 9 章：softmax 与 rms_norm           下一步
+第 9 章：softmax 与 rms_norm           进行中
 ```
 
 当前已存在的重要文件：
@@ -38,6 +38,7 @@ include/firstllm/runtime/engine.h
 include/firstllm/firstllm.h
 include/firstllm/kernels/cpu/add.h
 include/firstllm/kernels/cpu/matmul.h
+include/firstllm/kernels/cpu/softmax.h
 src/core/status.cpp
 src/core/tensor.cpp
 src/core/backend.cpp
@@ -45,6 +46,7 @@ src/backends/cpu/cpu_backend.cpp
 src/runtime/engine.cpp
 src/kernels/cpu/add.cpp
 src/kernels/cpu/matmul.cpp
+src/kernels/cpu/softmax.cpp
 examples/firstllm_info.cpp
 tests/status_test.cpp
 tests/tensor_test.cpp
@@ -54,6 +56,7 @@ tests/engine_test.cpp
 tests/smoke.cpp
 tests/cpu_add_test.cpp
 tests/cpu_matmul_test.cpp
+tests/cpu_softmax_test.cpp
 ```
 
 当前已验证：
@@ -61,7 +64,7 @@ tests/cpu_matmul_test.cpp
 ```text
 CMake configure 成功
 CMake build 成功
-CTest: 100% tests passed, 0 tests failed out of 8
+CTest: 100% tests passed, 0 tests failed out of 9
 ```
 
 ## 3. 标准学习流程
@@ -431,7 +434,7 @@ tests/cpu_matmul_test.cpp
 
 ## 14. 第 9 章：softmax 与 rms_norm
 
-状态：下一步。
+状态：进行中。
 
 目标文件：
 
@@ -450,6 +453,18 @@ tests/cpu_rms_norm_test.cpp
 - softmax 使用 max-subtraction 保证数值稳定。
 - 实现 Llama-like 模型常用的 RMSNorm。
 - 继续使用 `Status` 表达参数错误。
+
+完成情况：
+
+- 用户已手动创建 `include/firstllm/kernels/cpu/softmax.h`。
+- 用户已手动创建 `src/kernels/cpu/softmax.cpp`。
+- 用户已手动创建 `tests/cpu_softmax_test.cpp`。
+- softmax 已接入 CMake 和 CTest。
+- 当前 `ctest` 结果为 `100% tests passed, 0 tests failed out of 9`。
+
+下一步：
+
+- 创建 `include/firstllm/kernels/cpu/rms_norm.h`。
 
 ## 15. 后续章节概览
 
