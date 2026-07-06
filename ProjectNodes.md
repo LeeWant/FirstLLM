@@ -21,7 +21,8 @@
 第 4 章：CPU Backend                   已完成
 第 5 章：Engine Runtime                已完成
 第 6 章：示例程序和 smoke test         已完成
-第 7 章：CPU add 算子                  下一步
+第 7 章：CPU add 算子                  已完成
+第 8 章：CPU matmul 算子               下一步
 ```
 
 当前已存在的重要文件：
@@ -34,11 +35,13 @@ include/firstllm/core/backend.h
 include/firstllm/backends/cpu_backend.h
 include/firstllm/runtime/engine.h
 include/firstllm/firstllm.h
+include/firstllm/kernels/cpu/add.h
 src/core/status.cpp
 src/core/tensor.cpp
 src/core/backend.cpp
 src/backends/cpu/cpu_backend.cpp
 src/runtime/engine.cpp
+src/kernels/cpu/add.cpp
 examples/firstllm_info.cpp
 tests/status_test.cpp
 tests/tensor_test.cpp
@@ -46,6 +49,7 @@ tests/backend_test.cpp
 tests/cpu_backend_test.cpp
 tests/engine_test.cpp
 tests/smoke.cpp
+tests/cpu_add_test.cpp
 ```
 
 当前已验证：
@@ -53,7 +57,7 @@ tests/smoke.cpp
 ```text
 CMake configure 成功
 CMake build 成功
-CTest: 100% tests passed, 0 tests failed out of 6
+CTest: 100% tests passed, 0 tests failed out of 7
 ```
 
 ## 3. 标准学习流程
@@ -369,7 +373,7 @@ tests/smoke.cpp
 
 ## 12. 第 7 章：CPU add 算子
 
-状态：下一步。
+状态：已完成。
 
 目标文件：
 
@@ -386,7 +390,34 @@ tests/cpu_add_test.cpp
 - 检查输入输出 tensor 的 shape。
 - 使用 `Status` 返回参数错误或成功状态。
 
-## 13. 后续章节概览
+完成情况：
+
+- 用户已手动创建 `include/firstllm/kernels/cpu/add.h`。
+- 用户已手动创建 `src/kernels/cpu/add.cpp`。
+- 用户已手动创建 `tests/cpu_add_test.cpp`。
+- 已接入 CMake 和 CTest。
+- 当前 `ctest` 结果为 `100% tests passed, 0 tests failed out of 7`。
+
+## 13. 第 8 章：CPU matmul 算子
+
+状态：下一步。
+
+目标文件：
+
+```text
+include/firstllm/kernels/cpu/matmul.h
+src/kernels/cpu/matmul.cpp
+tests/cpu_matmul_test.cpp
+```
+
+作用：
+
+- 实现最朴素的二维 float32 矩阵乘法。
+- 检查输入输出 tensor 的 dtype。
+- 检查 lhs、rhs 和 output 的 shape 关系。
+- 使用 `Status` 返回参数错误或成功状态。
+
+## 14. 后续章节概览
 
 ### 第 7 章：CPU add 算子
 
@@ -431,7 +462,7 @@ tests/cpu_add_test.cpp
 
 - 逐步把基础算子组合成极小 decoder-only 推理闭环。
 
-## 14. 每章完成标准
+## 15. 每章完成标准
 
 每章完成时至少满足：
 

@@ -11,6 +11,7 @@ add_library(firstllm STATIC
   src/core/backend.cpp
   src/backends/cpu/cpu_backend.cpp
   src/runtime/engine.cpp
+  src/kernels/cpu/add.cpp
 )
 
 target_compile_features(firstllm PUBLIC cxx_std_20)
@@ -99,4 +100,15 @@ if(FIRSTLLM_BUILD_TESTS)
   )
 
   add_test(NAME firstllm_smoke_test COMMAND firstllm_smoke_test)
+
+  add_executable(firstllm_cpu_add_test
+    tests/cpu_add_test.cpp
+  )
+
+  target_link_libraries(firstllm_cpu_add_test
+    PRIVATE
+      firstllm
+  )
+
+  add_test(NAME firstllm_cpu_add_test COMMAND firstllm_cpu_add_test)
 endif()

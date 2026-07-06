@@ -23,6 +23,7 @@
 | 第 4 章：CPU Backend | 已完成 | 2026-07-06 14:24:24 |
 | 第 5 章：Engine Runtime | 已完成 | 2026-07-06 14:55:20 |
 | 第 6 章：示例程序和 smoke test | 已完成 | 2026-07-06 15:16:32 |
+| 第 7 章：CPU add 算子 | 已完成 | 2026-07-06 16:13:55 |
 | 文档与协作流程 | 已更新 | 2026-07-03 17:32:18 |
 
 后续新增日志时，应放到对应章节下，并同步更新本索引。
@@ -603,7 +604,60 @@
 
 - 进入第 7 章，创建 CPU add 算子。
 
-## 12. 文档与协作流程日志
+## 12. 第 7 章：CPU add 算子
+
+### 2026-07-06 16:13:55 +08:00
+
+章节 / 阶段：第 7 章 CPU add 算子与测试
+
+完成内容：
+
+- 用户已手动创建 `include/firstllm/kernels/cpu/add.h`。
+- 用户已手动创建 `src/kernels/cpu/add.cpp`。
+- 用户已将 `src/kernels/cpu/add.cpp` 接入 `firstllm` 静态库目标。
+- 用户已手动创建 `tests/cpu_add_test.cpp`。
+- 用户已将 `firstllm_cpu_add_test` 接入 CMake 和 CTest。
+- `CpuAdd` 已支持 `float32` tensor 逐元素相加。
+- `CpuAdd` 已检查输出指针为空、dtype 不匹配和 shape 不匹配等错误路径。
+- Agent 检查文件后重新执行 configure、build 和 ctest，确认测试闭环通过。
+
+新增文件：
+
+- `include/firstllm/kernels/cpu/add.h`
+- `src/kernels/cpu/add.cpp`
+- `tests/cpu_add_test.cpp`
+
+修改文件：
+
+- `CMakeLists.txt`
+- `ProgressLog.md`
+
+验证情况：
+
+- CMake configure 成功。
+- CMake build 成功。
+- CTest 运行成功。
+- 测试结果为 `100% tests passed, 0 tests failed out of 7`。
+- `firstllm_status_test`、`firstllm_tensor_test`、`firstllm_backend_test`、`firstllm_cpu_backend_test`、`firstllm_engine_test`、`firstllm_smoke_test` 与 `firstllm_cpu_add_test` 均通过。
+- 总测试时间为 `0.10 sec`。
+
+已知问题 / Bug：
+
+- Codex 沙箱内执行 MSBuild 时仍会在文件跟踪阶段遇到 `拒绝访问`。
+- 使用外部执行权限重新运行相同 build 命令后构建成功，说明该问题与当前代码无关，更像是构建工具访问权限限制。
+- 当前 `CpuAdd` 只支持 `float32`，不支持广播、stride、view 或自动创建输出 tensor。
+
+设计思考：
+
+- `CpuAdd` 是 FirstLLM 的第一个真实数值算子，开始把 `Tensor`、`Status` 和 CPU 路径连起来。
+- 当前实现继续使用 raw bytes 和 `std::memcpy` 读写 float，符合第一版 `Tensor` 的内存模型。
+- 输出 tensor 由调用者传入，可以让算子暂时不承担内存规划职责。
+
+下一步：
+
+- 进入第 8 章，创建 CPU matmul 算子。
+
+## 13. 文档与协作流程日志
 
 ### 2026-07-03 17:32:18 +08:00
 
