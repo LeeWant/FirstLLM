@@ -55,4 +55,15 @@ if(FIRSTLLM_BUILD_TESTS)
   )
 
   add_test(NAME firstllm_backend_test COMMAND firstllm_backend_test)
+
+  add_executable(firstllm_cpu_backend_test
+    tests/cpu_backend_test.cpp
+  )
+
+  target_link_libraries(firstllm_cpu_backend_test
+    PRIVATE
+      firstllm
+  )
+
+  add_test(NAME firstllm_cpu_backend_test COMMAND firstllm_cpu_backend_test)
 endif()

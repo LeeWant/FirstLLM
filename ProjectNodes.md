@@ -18,7 +18,8 @@
 第 1 章补充：Status 测试               已完成
 第 2 章：Tensor 基础类型               已完成
 第 3 章：Backend 抽象                  已完成
-第 4 章：CPU Backend                   下一步
+第 4 章：CPU Backend                   已完成
+第 5 章：Engine Runtime                下一步
 ```
 
 当前已存在的重要文件：
@@ -28,12 +29,15 @@ CMakeLists.txt
 include/firstllm/core/status.h
 include/firstllm/core/tensor.h
 include/firstllm/core/backend.h
+include/firstllm/backends/cpu_backend.h
 src/core/status.cpp
 src/core/tensor.cpp
 src/core/backend.cpp
+src/backends/cpu/cpu_backend.cpp
 tests/status_test.cpp
 tests/tensor_test.cpp
 tests/backend_test.cpp
+tests/cpu_backend_test.cpp
 ```
 
 当前已验证：
@@ -41,7 +45,7 @@ tests/backend_test.cpp
 ```text
 CMake configure 成功
 CMake build 成功
-CTest: 100% tests passed, 0 tests failed out of 3
+CTest: 100% tests passed, 0 tests failed out of 4
 ```
 
 ## 3. 标准学习流程
@@ -273,13 +277,14 @@ Backend 不只是设备，它还是 capability provider。
 
 ## 9. 第 4 章：CPU Backend
 
-状态：下一步。
+状态：已完成。
 
 目标文件：
 
 ```text
 include/firstllm/backends/cpu_backend.h
 src/backends/cpu/cpu_backend.cpp
+tests/cpu_backend_test.cpp
 ```
 
 作用：
@@ -288,9 +293,17 @@ src/backends/cpu/cpu_backend.cpp
 - CPU backend 作为 correctness baseline。
 - 后续 CUDA backend 的结果应与 CPU 对照。
 
+完成情况：
+
+- 用户已手动创建 `include/firstllm/backends/cpu_backend.h`。
+- 用户已手动创建 `src/backends/cpu/cpu_backend.cpp`。
+- 用户已手动创建 `tests/cpu_backend_test.cpp`。
+- 已接入 CMake 和 CTest。
+- 当前 `ctest` 结果为 `100% tests passed, 0 tests failed out of 4`。
+
 ## 10. 第 5 章：Engine Runtime
 
-状态：未开始。
+状态：下一步。
 
 目标文件：
 

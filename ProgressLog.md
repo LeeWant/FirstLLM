@@ -20,6 +20,7 @@
 | 第 1 章：Status 错误处理 | 已完成 | 2026-07-03 17:24:39 |
 | 第 2 章：Tensor 基础类型 | 已完成 | 2026-07-06 11:02:33 |
 | 第 3 章：Backend 抽象 | 已完成 | 2026-07-06 14:00:30 |
+| 第 4 章：CPU Backend | 已完成 | 2026-07-06 14:24:24 |
 | 文档与协作流程 | 已更新 | 2026-07-03 17:32:18 |
 
 后续新增日志时，应放到对应章节下，并同步更新本索引。
@@ -437,7 +438,61 @@
 
 - 进入第 4 章，创建 `CPU Backend`。
 
-## 9. 文档与协作流程日志
+## 9. 第 4 章：CPU Backend
+
+### 2026-07-06 14:24:24 +08:00
+
+章节 / 阶段：第 4 章 CPU Backend 与测试
+
+完成内容：
+
+- 用户已手动创建 `include/firstllm/backends/cpu_backend.h`。
+- 用户已手动创建 `src/backends/cpu/cpu_backend.cpp`。
+- 用户已将 `src/backends/cpu/cpu_backend.cpp` 接入 `firstllm` 静态库目标。
+- 用户已手动创建 `tests/cpu_backend_test.cpp`。
+- 用户已将 `firstllm_cpu_backend_test` 接入 CMake 和 CTest。
+- `CpuBackend` 已能返回 backend 信息。
+- `CpuBackend` 已支持初始化前不可用、初始化后可用的状态行为。
+- `CpuBackend` 当前只声明支持 `float32 add`。
+- Agent 检查文件后重新执行 configure、build 和 ctest，确认测试闭环通过。
+
+新增文件：
+
+- `include/firstllm/backends/cpu_backend.h`
+- `src/backends/cpu/cpu_backend.cpp`
+- `tests/cpu_backend_test.cpp`
+
+修改文件：
+
+- `CMakeLists.txt`
+- `ProgressLog.md`
+
+验证情况：
+
+- CMake configure 成功。
+- CMake build 成功。
+- CTest 运行成功。
+- 测试结果为 `100% tests passed, 0 tests failed out of 4`。
+- `firstllm_status_test`、`firstllm_tensor_test`、`firstllm_backend_test` 与 `firstllm_cpu_backend_test` 均通过。
+- 总测试时间为 `0.04 sec`。
+
+已知问题 / Bug：
+
+- Codex 沙箱内执行 MSBuild 时仍会在文件跟踪阶段遇到 `拒绝访问`。
+- 使用外部执行权限重新运行相同 build 命令后构建成功，说明该问题与当前代码无关，更像是构建工具访问权限限制。
+- 当前 `CpuBackend` 只声明能力，不执行真实 `add` 算子。
+
+设计思考：
+
+- CPU backend 是第一个真实 backend，但这一章仍只做能力声明和可用性验证。
+- 当前只声明支持 `float32 add`，避免提前让 registry 认为 `matmul`、`softmax` 或其他 dtype 已经可用。
+- 真实数值计算应在后续 kernel / 算子章节中接入。
+
+下一步：
+
+- 进入第 5 章，创建 `Engine Runtime`。
+
+## 10. 文档与协作流程日志
 
 ### 2026-07-03 17:32:18 +08:00
 
