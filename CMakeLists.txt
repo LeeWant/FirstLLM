@@ -112,4 +112,15 @@ if(FIRSTLLM_BUILD_TESTS)
   )
 
   add_test(NAME firstllm_cpu_add_test COMMAND firstllm_cpu_add_test)
+
+  add_executable(firstllm_cpu_matmul_test
+    tests/cpu_matmul_test.cpp
+  )
+
+  target_link_libraries(firstllm_cpu_matmul_test
+    PRIVATE
+      firstllm
+  )
+
+  add_test(NAME firstllm_cpu_matmul_test COMMAND firstllm_cpu_matmul_test)
 endif()
