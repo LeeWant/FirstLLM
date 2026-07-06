@@ -13,6 +13,7 @@ add_library(firstllm STATIC
   src/runtime/engine.cpp
   src/kernels/cpu/add.cpp
   src/kernels/cpu/matmul.cpp
+  src/kernels/cpu/softmax.cpp
 )
 
 target_compile_features(firstllm PUBLIC cxx_std_20)
