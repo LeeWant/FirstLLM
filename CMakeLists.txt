@@ -15,6 +15,7 @@ add_library(firstllm STATIC
   src/kernels/cpu/matmul.cpp
   src/kernels/cpu/softmax.cpp
   src/kernels/cpu/rms_norm.cpp
+  src/backends/cuda/cuda_backend.cpp
 )
 
 target_compile_features(firstllm PUBLIC cxx_std_20)
@@ -81,6 +82,18 @@ if(FIRSTLLM_BUILD_TESTS)
   )
 
   add_test(NAME firstllm_cpu_backend_test COMMAND firstllm_cpu_backend_test)
+
+  # GPU test
+  add_executable(firstllm_cuda_backend_test
+    tests/cuda_backend_test.cpp
+  )
+
+  target_link_libraries(firstllm_cuda_backend_test
+    PRIVATE
+      firstllm
+  )
+
+  add_test(NAME firstllm_cuda_backend_test COMMAND firstllm_cuda_backend_test)
 
   add_executable(firstllm_engine_test
     tests/engine_test.cpp

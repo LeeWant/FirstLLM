@@ -23,7 +23,8 @@
 第 6 章：示例程序和 smoke test         已完成
 第 7 章：CPU add 算子                  已完成
 第 8 章：CPU matmul 算子               已完成
-第 9 章：softmax 与 rms_norm           进行中
+第 9 章：softmax 与 rms_norm           已完成
+第 10 章：CUDA backend 骨架            下一步
 ```
 
 当前已存在的重要文件：
@@ -39,6 +40,7 @@ include/firstllm/firstllm.h
 include/firstllm/kernels/cpu/add.h
 include/firstllm/kernels/cpu/matmul.h
 include/firstllm/kernels/cpu/softmax.h
+include/firstllm/kernels/cpu/rms_norm.h
 src/core/status.cpp
 src/core/tensor.cpp
 src/core/backend.cpp
@@ -47,6 +49,7 @@ src/runtime/engine.cpp
 src/kernels/cpu/add.cpp
 src/kernels/cpu/matmul.cpp
 src/kernels/cpu/softmax.cpp
+src/kernels/cpu/rms_norm.cpp
 examples/firstllm_info.cpp
 tests/status_test.cpp
 tests/tensor_test.cpp
@@ -57,6 +60,7 @@ tests/smoke.cpp
 tests/cpu_add_test.cpp
 tests/cpu_matmul_test.cpp
 tests/cpu_softmax_test.cpp
+tests/cpu_rms_norm_test.cpp
 ```
 
 当前已验证：
@@ -64,7 +68,7 @@ tests/cpu_softmax_test.cpp
 ```text
 CMake configure 成功
 CMake build 成功
-CTest: 100% tests passed, 0 tests failed out of 9
+CTest: 100% tests passed, 0 tests failed out of 10
 ```
 
 ## 3. 标准学习流程
@@ -434,7 +438,7 @@ tests/cpu_matmul_test.cpp
 
 ## 14. 第 9 章：softmax 与 rms_norm
 
-状态：进行中。
+状态：已完成。
 
 目标文件：
 
@@ -460,13 +464,40 @@ tests/cpu_rms_norm_test.cpp
 - 用户已手动创建 `src/kernels/cpu/softmax.cpp`。
 - 用户已手动创建 `tests/cpu_softmax_test.cpp`。
 - softmax 已接入 CMake 和 CTest。
-- 当前 `ctest` 结果为 `100% tests passed, 0 tests failed out of 9`。
+- 用户已手动创建 `include/firstllm/kernels/cpu/rms_norm.h`。
+- 用户已手动创建 `src/kernels/cpu/rms_norm.cpp`。
+- 用户已手动创建 `tests/cpu_rms_norm_test.cpp`。
+- rms_norm 已接入 CMake 和 CTest。
+- 当前 `ctest` 结果为 `100% tests passed, 0 tests failed out of 10`。
 
 下一步：
 
-- 创建 `include/firstllm/kernels/cpu/rms_norm.h`。
+- 进入第 10 章，创建 CUDA backend 骨架。
 
-## 15. 后续章节概览
+## 15. 第 10 章：CUDA backend 骨架
+
+状态：下一步。
+
+目标文件：
+
+```text
+include/firstllm/backends/cuda_backend.h
+src/backends/cuda/cuda_backend.cpp
+tests/cuda_backend_test.cpp
+```
+
+作用：
+
+- 用和 CPU backend 相同的 `Backend` 抽象声明 CUDA backend。
+- 让 CUDA 成为可选能力，而不是当前构建的硬依赖。
+- 没有 CUDA toolkit 时仍然保持 CPU-only 构建和测试通过。
+- 第一版只做 backend 信息、初始化状态和能力查询，不写 CUDA kernel。
+
+下一步：
+
+- 创建 `include/firstllm/backends/cuda_backend.h`。
+
+## 16. 后续章节概览
 
 ### 第 7 章：CPU add 算子
 
@@ -511,7 +542,7 @@ tests/cpu_rms_norm_test.cpp
 
 - 逐步把基础算子组合成极小 decoder-only 推理闭环。
 
-## 16. 每章完成标准
+## 17. 每章完成标准
 
 每章完成时至少满足：
 

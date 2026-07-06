@@ -25,7 +25,7 @@
 | 第 6 章：示例程序和 smoke test | 已完成 | 2026-07-06 15:16:32 |
 | 第 7 章：CPU add 算子 | 已完成 | 2026-07-06 16:13:55 |
 | 第 8 章：CPU matmul 算子 | 已完成 | 2026-07-06 16:31:05 |
-| 第 9 章：softmax 与 rms_norm | 进行中 | 2026-07-06 16:54:02 softmax 已完成 |
+| 第 9 章：softmax 与 rms_norm | 已完成 | 2026-07-06 17:07:07 |
 | 文档与协作流程 | 已更新 | 2026-07-03 17:32:18 |
 
 后续新增日志时，应放到对应章节下，并同步更新本索引。
@@ -765,6 +765,60 @@
 下一步：
 
 - 继续第 9 章，创建 RMSNorm。
+
+### 2026-07-06 17:07:07 +08:00
+
+章节 / 阶段：第 9 章 RMSNorm 节点
+
+完成内容：
+
+- 用户已手动创建 `include/firstllm/kernels/cpu/rms_norm.h`。
+- 用户已手动创建 `src/kernels/cpu/rms_norm.cpp`。
+- 用户已将 `src/kernels/cpu/rms_norm.cpp` 接入 `firstllm` 静态库目标。
+- 用户已手动创建 `tests/cpu_rms_norm_test.cpp`。
+- 用户已将 `firstllm_cpu_rms_norm_test` 接入 CMake 和 CTest。
+- `CpuRmsNorm` 已支持二维 `float32` input、一维 `float32` weight 和同 shape output。
+- `CpuRmsNorm` 按行计算 `mean(x^2)`，再用 `1 / sqrt(mean_square + epsilon)` 进行归一化，并乘以每列 weight。
+- 测试已覆盖正常输出、空 output、dtype 错误、input rank 错误、weight shape 错误和 output shape 错误路径。
+- Agent 检查文件后重新执行 configure、build 和 ctest，确认第 9 章完整通过。
+
+新增文件：
+
+- `include/firstllm/kernels/cpu/rms_norm.h`
+- `src/kernels/cpu/rms_norm.cpp`
+- `tests/cpu_rms_norm_test.cpp`
+
+修改文件：
+
+- `CMakeLists.txt`
+- `ProgressLog.md`
+- `ProjectNodes.md`
+- `FirstLLM.md`
+
+验证情况：
+
+- CMake configure 成功。
+- CMake build 成功。
+- CTest 运行成功。
+- 测试结果为 `100% tests passed, 0 tests failed out of 10`。
+- `firstllm_cpu_rms_norm_test` 与此前全部测试均通过。
+- 总测试时间为 `0.14 sec`。
+
+已知问题 / Bug：
+
+- Codex 沙箱内执行 MSBuild 时仍会在文件跟踪阶段遇到 `拒绝访问`。
+- 使用外部执行权限重新运行相同 build 命令后构建成功，说明该问题与当前代码无关，更像是构建工具访问权限限制。
+- 当前 `CpuRmsNorm` 只支持二维连续 `float32` input 和一维 `float32` weight，不支持 batch 之外的更高 rank、half/bfloat16、in-place API 或 GPU memory。
+
+设计思考：
+
+- RMSNorm 是 Llama-like decoder block 的基础归一化算子，后续 attention 和 MLP 前后会依赖这一层语义。
+- 当前实现继续沿用调用者提供 output tensor 的模式，保持 kernel 只负责参数检查和数值计算。
+- 使用 `std::memcpy` 读写 float，继续匹配当前 `Tensor` 的 raw bytes 内存模型。
+
+下一步：
+
+- 进入第 10 章，创建 CUDA backend 骨架。
 
 ## 15. 文档与协作流程日志
 
