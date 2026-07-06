@@ -21,6 +21,7 @@
 | 第 2 章：Tensor 基础类型 | 已完成 | 2026-07-06 11:02:33 |
 | 第 3 章：Backend 抽象 | 已完成 | 2026-07-06 14:00:30 |
 | 第 4 章：CPU Backend | 已完成 | 2026-07-06 14:24:24 |
+| 第 5 章：Engine Runtime | 已完成 | 2026-07-06 14:55:20 |
 | 文档与协作流程 | 已更新 | 2026-07-03 17:32:18 |
 
 后续新增日志时，应放到对应章节下，并同步更新本索引。
@@ -492,7 +493,61 @@
 
 - 进入第 5 章，创建 `Engine Runtime`。
 
-## 10. 文档与协作流程日志
+## 10. 第 5 章：Engine Runtime
+
+### 2026-07-06 14:55:20 +08:00
+
+章节 / 阶段：第 5 章 Engine Runtime 与测试
+
+完成内容：
+
+- 用户已手动创建 `include/firstllm/runtime/engine.h`。
+- 用户已手动创建 `src/runtime/engine.cpp`。
+- 用户已将 `src/runtime/engine.cpp` 接入 `firstllm` 静态库目标。
+- 用户已手动创建 `tests/engine_test.cpp`。
+- 用户已将 `firstllm_engine_test` 接入 CMake 和 CTest。
+- `EngineConfig` 已支持控制是否启用 CPU backend。
+- `Engine` 已支持初始化 backend registry。
+- `Engine` 已支持通过 op 和 dtype 查找 backend。
+- Agent 检查文件后重新执行 configure、build 和 ctest，确认测试闭环通过。
+
+新增文件：
+
+- `include/firstllm/runtime/engine.h`
+- `src/runtime/engine.cpp`
+- `tests/engine_test.cpp`
+
+修改文件：
+
+- `CMakeLists.txt`
+- `ProgressLog.md`
+
+验证情况：
+
+- CMake configure 成功。
+- CMake build 成功。
+- CTest 运行成功。
+- 测试结果为 `100% tests passed, 0 tests failed out of 5`。
+- `firstllm_status_test`、`firstllm_tensor_test`、`firstllm_backend_test`、`firstllm_cpu_backend_test` 与 `firstllm_engine_test` 均通过。
+- 总测试时间为 `0.05 sec`。
+
+已知问题 / Bug：
+
+- Codex 沙箱内执行 MSBuild 时仍会在文件跟踪阶段遇到 `拒绝访问`。
+- 使用外部执行权限重新运行相同 build 命令后构建成功，说明该问题与当前代码无关，更像是构建工具访问权限限制。
+- 当前 `Engine` 只负责编排和 backend 查找，不执行真实算子、不解析模型、不管理 KV cache。
+
+设计思考：
+
+- `Engine` 是用户侧入口，但第一版只做最小编排：根据配置初始化 CPU backend，并通过 registry 查询能力。
+- 这一步把 `BackendRegistry` 和 `CpuBackend` 接到了 runtime 层，形成从用户入口到 backend 选择的第一条路径。
+- 真实请求结构、模型加载和推理循环应留到后续章节逐步加入。
+
+下一步：
+
+- 进入第 6 章，创建总入口、示例程序和 smoke test。
+
+## 11. 文档与协作流程日志
 
 ### 2026-07-03 17:32:18 +08:00
 
