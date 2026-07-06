@@ -12,6 +12,7 @@ add_library(firstllm STATIC
   src/backends/cpu/cpu_backend.cpp
   src/runtime/engine.cpp
   src/kernels/cpu/add.cpp
+  src/kernels/cpu/matmul.cpp
 )
 
 target_compile_features(firstllm PUBLIC cxx_std_20)
