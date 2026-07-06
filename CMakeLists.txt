@@ -124,4 +124,15 @@ if(FIRSTLLM_BUILD_TESTS)
   )
 
   add_test(NAME firstllm_cpu_matmul_test COMMAND firstllm_cpu_matmul_test)
+
+  add_executable(firstllm_cpu_softmax_test
+    tests/cpu_softmax_test.cpp
+  )
+
+  target_link_libraries(firstllm_cpu_softmax_test
+    PRIVATE
+      firstllm
+  )
+
+  add_test(NAME firstllm_cpu_softmax_test COMMAND firstllm_cpu_softmax_test)
 endif()
