@@ -19,6 +19,7 @@
 | 第 0 章：重新建立最小工程 | 已完成 | 2026-07-03 16:13:19 |
 | 第 1 章：Status 错误处理 | 已完成 | 2026-07-03 17:24:39 |
 | 第 2 章：Tensor 基础类型 | 已完成 | 2026-07-06 11:02:33 |
+| 第 3 章：Backend 抽象 | 已完成 | 2026-07-06 14:00:30 |
 | 文档与协作流程 | 已更新 | 2026-07-03 17:32:18 |
 
 后续新增日志时，应放到对应章节下，并同步更新本索引。
@@ -383,7 +384,60 @@
 
 - 进入第 3 章，创建 `Backend` 抽象。
 
-## 8. 文档与协作流程日志
+## 8. 第 3 章：Backend 抽象
+
+### 2026-07-06 14:00:30 +08:00
+
+章节 / 阶段：第 3 章 Backend 抽象与测试
+
+完成内容：
+
+- 用户已手动创建 `include/firstllm/core/backend.h`。
+- 用户已手动创建 `src/core/backend.cpp`。
+- 用户已将 `src/core/backend.cpp` 接入 `firstllm` 静态库目标。
+- 用户已手动创建 `tests/backend_test.cpp`。
+- 用户已将 `firstllm_backend_test` 接入 CMake 和 CTest。
+- `Backend` 抽象已表达 backend 信息、初始化、可用性和能力查询。
+- `BackendRegistry` 已支持添加 backend、列出 backend，并按 op、dtype、可用性和优先级查找 backend。
+- Agent 检查文件后重新执行 configure、build 和 ctest，确认测试闭环通过。
+
+新增文件：
+
+- `include/firstllm/core/backend.h`
+- `src/core/backend.cpp`
+- `tests/backend_test.cpp`
+
+修改文件：
+
+- `CMakeLists.txt`
+- `ProgressLog.md`
+
+验证情况：
+
+- CMake configure 成功。
+- CMake build 成功。
+- CTest 运行成功。
+- 测试结果为 `100% tests passed, 0 tests failed out of 3`。
+- `firstllm_status_test`、`firstllm_tensor_test` 与 `firstllm_backend_test` 均通过。
+- 总测试时间为 `0.03 sec`。
+
+已知问题 / Bug：
+
+- Codex 沙箱内执行 MSBuild 时仍会在文件跟踪阶段遇到 `拒绝访问`。
+- 使用外部执行权限重新运行相同 build 命令后构建成功，说明该问题与当前代码无关，更像是构建工具访问权限限制。
+- 当前 `Backend` 只描述能力和选择逻辑，不执行真实算子。
+
+设计思考：
+
+- `Backend` 抽象回答“我是谁、我是否可用、我支持什么”，不承担具体数值计算。
+- `BackendRegistry::find_backend()` 让 runtime 后续可以从多个 backend 中选择最合适的一个。
+- 真实 CPU 算子和后端实现放到后续章节，避免把抽象层和具体实现混在一起。
+
+下一步：
+
+- 进入第 4 章，创建 `CPU Backend`。
+
+## 9. 文档与协作流程日志
 
 ### 2026-07-03 17:32:18 +08:00
 

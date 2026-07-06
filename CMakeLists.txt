@@ -9,6 +9,7 @@ add_library(firstllm STATIC
   src/core/status.cpp
   src/core/tensor.cpp
   src/core/backend.cpp
+  src/backends/cpu/cpu_backend.cpp
 )
 
 target_compile_features(firstllm PUBLIC cxx_std_20)
