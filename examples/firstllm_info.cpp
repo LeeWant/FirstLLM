@@ -3,27 +3,32 @@
 #include <iostream>
 
 int main() {
-    firstllm::Engine engine(firstllm::EngineConfig{});
+  // engine 是示例程序中的最小运行时入口。
+  firstllm::Engine engine(firstllm::EngineConfig{});
 
-    const firstllm::Status status = engine.initialize();
+  // status 保存初始化结果，失败时打印错误信息。
+  const firstllm::Status status = engine.initialize();
 
-    if (!status.ok()) {
-        std::cout << "FirstLLM initialize failed: "
-                  << status.message() << "\n";
-        return 1;
-    }
+  if (!status.ok()) {
+    std::cout << "FirstLLM initialize failed: "
+              << status.message() << "\n";
+    return 1;
+  }
 
-    const auto backend = engine.find_backend(firstllm::OpKind::kAdd, firstllm::DType::kFloat32);
+  // backend 是当前可用于 float32 add 的后端。
+  const auto backend =
+      engine.find_backend(firstllm::OpKind::kAdd, firstllm::DType::kFloat32);
 
-    if (!backend) {
-        std::cout << "FirstLLM initialized, but no backend found\n";
-        return 1;
-    }
+  if (!backend) {
+    std::cout << "FirstLLM initialized, but no backend found\n";
+    return 1;
+  }
 
-    const firstllm::BackendInfo info = backend->info();
+  // info 用于展示被选中的 backend。
+  const firstllm::BackendInfo info = backend->info();
 
-    std::cout << "FirstLLM initialized\n";
-    std::cout << "Selected backend: " << info.name << "\n";
+  std::cout << "FirstLLM initialized\n";
+  std::cout << "Selected backend: " << info.name << "\n";
 
-    return 0;
+  return 0;
 }

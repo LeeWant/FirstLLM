@@ -26,7 +26,9 @@
 | 第 7 章：CPU add 算子 | 已完成 | 2026-07-06 16:13:55 |
 | 第 8 章：CPU matmul 算子 | 已完成 | 2026-07-06 16:31:05 |
 | 第 9 章：softmax 与 rms_norm | 已完成 | 2026-07-06 17:07:07 |
-| 文档与协作流程 | 已更新 | 2026-07-03 17:32:18 |
+| 第 10 章：CUDA backend 骨架 | 已完成 | 2026-07-06 17:40:50 |
+| 第 11 章：GGUF metadata reader | 进行中 | 2026-07-06 18:18:27 metadata key/value 已完成 |
+| 文档与协作流程 | 已更新 | 2026-07-07 09:33:13 中文注释与工作流更新 |
 
 后续新增日志时，应放到对应章节下，并同步更新本索引。
 
@@ -820,7 +822,168 @@
 
 - 进入第 10 章，创建 CUDA backend 骨架。
 
-## 15. 文档与协作流程日志
+## 15. 第 10 章：CUDA backend 骨架
+
+### 2026-07-06 17:40:50 +08:00
+
+章节 / 阶段：第 10 章 CUDA backend 骨架
+
+完成内容：
+
+- 用户已手动创建 `include/firstllm/backends/cuda_backend.h`。
+- 用户已手动创建 `src/backends/cuda/cuda_backend.cpp`。
+- 用户已手动创建 `tests/cuda_backend_test.cpp`。
+- 用户已将 `src/backends/cuda/cuda_backend.cpp` 接入 `firstllm` 静态库目标。
+- 用户已将 `firstllm_cuda_backend_test` 接入 CMake 和 CTest。
+- `CudaBackend` 已能返回 backend 信息：名称为 `cuda`，设备类型为 `DeviceType::kCuda`，优先级为 `10`。
+- 当前 build 下 `CudaBackend::initialize()` 返回 `BackendUnavailable`，并保持 `is_available()` 为 false。
+- 当前 `CudaBackend::supports()` 对所有 op 和 dtype 返回 false，避免 runtime 误选一个不可用 backend。
+- Agent 检查文件后重新执行 configure、build 和 ctest，确认第 10 章通过。
+
+新增文件：
+
+- `include/firstllm/backends/cuda_backend.h`
+- `src/backends/cuda/cuda_backend.cpp`
+- `tests/cuda_backend_test.cpp`
+
+修改文件：
+
+- `CMakeLists.txt`
+- `ProgressLog.md`
+- `ProjectNodes.md`
+- `FirstLLM.md`
+
+验证情况：
+
+- CMake configure 成功。
+- CMake build 成功。
+- CTest 运行成功。
+- 测试结果为 `100% tests passed, 0 tests failed out of 11`。
+- `firstllm_cuda_backend_test` 与此前全部测试均通过。
+- 总测试时间为 `0.17 sec`。
+
+已知问题 / Bug：
+
+- Codex 沙箱内执行 MSBuild 时仍会在文件跟踪阶段遇到 `拒绝访问`。
+- 使用外部执行权限重新运行相同 build 命令后构建成功，说明该问题与当前代码无关，更像是构建工具访问权限限制。
+- 当前 CUDA backend 只是骨架，不包含 CUDA runtime 检测、CUDA kernel、device memory 或真实 GPU 执行。
+
+设计思考：
+
+- CUDA backend 先作为可选 capability provider 出现在架构中，而不是立即引入 CUDA SDK 依赖。
+- 让不可用 backend 明确返回 `BackendUnavailable`，比静默初始化成功更安全。
+- 第一版 `supports()` 返回 false，确保当前 CPU-only 构建不会误把请求分配给 CUDA。
+
+下一步：
+
+- 进入第 11 章，创建 GGUF metadata reader。
+
+## 16. 第 11 章：GGUF metadata reader
+
+### 2026-07-06 17:59:26 +08:00
+
+章节 / 阶段：第 11 章 GGUF header reader
+
+完成内容：
+
+- 用户已手动创建 `include/firstllm/model/gguf_reader.h`。
+- 用户已手动创建 `src/model/gguf_reader.cpp`。
+- 用户已手动创建 `tests/gguf_reader_test.cpp`。
+- 用户已将 `src/model/gguf_reader.cpp` 接入 `firstllm` 静态库目标。
+- 用户已将 `firstllm_gguf_reader_test` 接入 CMake 和 CTest。
+- `GgufReader` 已保存 GGUF 文件路径，并暴露 `path()`、`header()` 和 `read_header()`。
+- `read_header()` 已按 little-endian 读取 magic、version、tensor_count 和 metadata_kv_count。
+- 测试已覆盖正常 header、空路径、文件不存在、magic 错误和截断文件。
+- Agent 检查文件后重新执行 configure、build 和 ctest，确认 GGUF header reader 通过。
+
+新增文件：
+
+- `include/firstllm/model/gguf_reader.h`
+- `src/model/gguf_reader.cpp`
+- `tests/gguf_reader_test.cpp`
+
+修改文件：
+
+- `CMakeLists.txt`
+- `ProgressLog.md`
+- `ProjectNodes.md`
+- `FirstLLM.md`
+
+验证情况：
+
+- CMake configure 成功。
+- CMake build 成功。
+- CTest 运行成功。
+- 测试结果为 `100% tests passed, 0 tests failed out of 12`。
+- `firstllm_gguf_reader_test` 与此前全部测试均通过。
+- 总测试时间为 `0.14 sec`。
+
+已知问题 / Bug：
+
+- Codex 沙箱内执行 MSBuild 时仍会在文件跟踪阶段遇到 `拒绝访问`。
+- 使用外部执行权限重新运行相同 build 命令后构建成功，说明该问题与当前代码无关，更像是构建工具访问权限限制。
+- 当前 GGUF reader 只读取固定 header，不解析 metadata key/value、tensor info 或权重数据。
+
+设计思考：
+
+- GGUF 是二进制格式，当前实现手动按 little-endian 读取整数，避免依赖平台字节序和结构体内存布局。
+- 第一版先验证文件识别和错误路径，让后续 metadata 与 tensor info 解析有稳定入口。
+- 测试通过临时文件构造最小 GGUF-like header，避免依赖真实大模型文件。
+
+下一步：
+
+- 继续第 11 章，扩展 metadata key/value 读取。
+
+### 2026-07-06 18:18:27 +08:00
+
+章节 / 阶段：第 11 章 GGUF metadata key/value reader
+
+完成内容：
+
+- 根据用户请求，Agent 接手完成 GGUF metadata key/value 读取相关代码修改和测试扩展。
+- `GgufReader` 已暴露 `metadata()` 和 `read_metadata()`。
+- `GgufMetadataValueType` 已覆盖 GGUF metadata value type 枚举。
+- `GgufMetadataValue` 当前支持 `std::uint32_t`、`std::uint64_t`、`bool` 和 `std::string`。
+- `read_metadata()` 已能在读取 header 后，逐条读取 metadata key、value type 和 value。
+- 当前遇到不支持的 value type 会返回 `InvalidArgument`，避免错误跳读二进制数据。
+- bool metadata 会校验原始字节只能是 `0` 或 `1`。
+- `tests/gguf_reader_test.cpp` 已扩展为构造带 metadata 的最小 GGUF-like 文件，并验证成功与错误路径。
+
+修改文件：
+
+- `include/firstllm/model/gguf_reader.h`
+- `src/model/gguf_reader.cpp`
+- `tests/gguf_reader_test.cpp`
+- `ProgressLog.md`
+- `ProjectNodes.md`
+- `FirstLLM.md`
+
+验证情况：
+
+- CMake configure 成功。
+- CMake build 成功。
+- CTest 运行成功。
+- 测试结果为 `100% tests passed, 0 tests failed out of 12`。
+- `firstllm_gguf_reader_test` 与此前全部测试均通过。
+- 总测试时间为 `9.43 sec`。
+
+已知问题 / Bug：
+
+- Codex 沙箱内执行 MSBuild 时仍会在文件跟踪阶段遇到 `拒绝访问`。
+- 使用外部执行权限重新运行相同 build 命令后构建成功，说明该问题与当前代码无关，更像是构建工具访问权限限制。
+- 当前 GGUF reader 仍不支持 array metadata、float metadata、int metadata、tensor info 或权重数据。
+
+设计思考：
+
+- 先支持 `uint32`、`uint64`、`bool` 和 `string`，可以覆盖早期最常用的模型基础 metadata。
+- 对暂不支持的 metadata type 立即返回错误，比试图跳过未知二进制布局更稳。
+- 测试继续使用临时文件手动写 little-endian 数据，不依赖真实模型文件。
+
+下一步：
+
+- 继续第 11 章，扩展 tensor info 读取。
+
+## 17. 文档与协作流程日志
 
 ### 2026-07-03 17:32:18 +08:00
 
@@ -855,3 +1018,47 @@
 下一步：
 
 - 从第 2 章开始，继续用“用户手敲、Agent 指导、Agent 记录”的方式推进 `Tensor`。
+
+### 2026-07-07 09:33:13 +08:00
+
+章节 / 阶段：中文注释与协作流程更新
+
+完成内容：
+
+- 根据用户要求，为已有核心代码、测试代码和示例代码补充中文注释。
+- 注释覆盖函数职责、关键变量含义、错误路径、当前未完善功能和后续可扩展点。
+- 更新 `agent.md`，明确当前协作方式：默认由用户手敲代码；当用户明确要求“帮我完成”时，Agent 可以直接修改代码并完成验证。
+- 明确后续新增代码示例也需要配套中文注释，方便学习和回看。
+- 在 `CMakeLists.txt` 中为 MSVC 添加 `/utf-8` 编译选项，避免中文注释在默认代码页下导致乱码和编译错误。
+
+修改文件：
+
+- `agent.md`
+- `CMakeLists.txt`
+- `include/firstllm/**`
+- `src/**`
+- `tests/**`
+- `examples/firstllm_info.cpp`
+- `ProgressLog.md`
+
+验证情况：
+
+- CMake configure 成功。
+- CMake build 成功。
+- CTest 运行成功。
+- 测试结果为 `100% tests passed, 0 tests failed out of 12`。
+- 总测试时间为 `289.59 sec`。
+
+已知问题 / Bug：
+
+- Codex 沙箱内执行 MSBuild 时仍会触发 `Microsoft.Build.Utilities.FileTracker` 权限错误。
+- 使用提升权限运行同一构建命令后构建成功，说明该问题来自构建工具权限限制，不是当前源码问题。
+
+设计思考：
+
+- 本项目是学习型推理引擎，中文注释应服务于理解代码意图，而不是机械翻译每一行语句。
+- 对暂未实现的功能保留明确注释，可以让后续章节知道该从哪里继续扩展。
+
+下一步：
+
+- 回到第 11 章 GGUF reader，继续实现 tensor info 读取。

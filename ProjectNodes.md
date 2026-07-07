@@ -24,7 +24,8 @@
 第 7 章：CPU add 算子                  已完成
 第 8 章：CPU matmul 算子               已完成
 第 9 章：softmax 与 rms_norm           已完成
-第 10 章：CUDA backend 骨架            下一步
+第 10 章：CUDA backend 骨架            已完成
+第 11 章：GGUF metadata reader         进行中
 ```
 
 当前已存在的重要文件：
@@ -35,7 +36,9 @@ include/firstllm/core/status.h
 include/firstllm/core/tensor.h
 include/firstllm/core/backend.h
 include/firstllm/backends/cpu_backend.h
+include/firstllm/backends/cuda_backend.h
 include/firstllm/runtime/engine.h
+include/firstllm/model/gguf_reader.h
 include/firstllm/firstllm.h
 include/firstllm/kernels/cpu/add.h
 include/firstllm/kernels/cpu/matmul.h
@@ -45,7 +48,9 @@ src/core/status.cpp
 src/core/tensor.cpp
 src/core/backend.cpp
 src/backends/cpu/cpu_backend.cpp
+src/backends/cuda/cuda_backend.cpp
 src/runtime/engine.cpp
+src/model/gguf_reader.cpp
 src/kernels/cpu/add.cpp
 src/kernels/cpu/matmul.cpp
 src/kernels/cpu/softmax.cpp
@@ -55,7 +60,9 @@ tests/status_test.cpp
 tests/tensor_test.cpp
 tests/backend_test.cpp
 tests/cpu_backend_test.cpp
+tests/cuda_backend_test.cpp
 tests/engine_test.cpp
+tests/gguf_reader_test.cpp
 tests/smoke.cpp
 tests/cpu_add_test.cpp
 tests/cpu_matmul_test.cpp
@@ -68,7 +75,7 @@ tests/cpu_rms_norm_test.cpp
 ```text
 CMake configure 成功
 CMake build 成功
-CTest: 100% tests passed, 0 tests failed out of 10
+CTest: 100% tests passed, 0 tests failed out of 12
 ```
 
 ## 3. 标准学习流程
@@ -476,7 +483,7 @@ tests/cpu_rms_norm_test.cpp
 
 ## 15. 第 10 章：CUDA backend 骨架
 
-状态：下一步。
+状态：已完成。
 
 目标文件：
 
@@ -493,11 +500,54 @@ tests/cuda_backend_test.cpp
 - 没有 CUDA toolkit 时仍然保持 CPU-only 构建和测试通过。
 - 第一版只做 backend 信息、初始化状态和能力查询，不写 CUDA kernel。
 
+完成情况：
+
+- 用户已手动创建 `include/firstllm/backends/cuda_backend.h`。
+- 用户已手动创建 `src/backends/cuda/cuda_backend.cpp`。
+- 用户已手动创建 `tests/cuda_backend_test.cpp`。
+- 用户已将 `src/backends/cuda/cuda_backend.cpp` 接入 `firstllm` 静态库目标。
+- 用户已将 `firstllm_cuda_backend_test` 接入 CMake 和 CTest。
+- 当前 `ctest` 结果为 `100% tests passed, 0 tests failed out of 11`。
+
 下一步：
 
-- 创建 `include/firstllm/backends/cuda_backend.h`。
+- 进入第 11 章，创建 GGUF metadata reader。
 
-## 16. 后续章节概览
+## 16. 第 11 章：GGUF metadata reader
+
+状态：进行中。
+
+目标文件：
+
+```text
+include/firstllm/model/gguf_reader.h
+src/model/gguf_reader.cpp
+tests/gguf_reader_test.cpp
+```
+
+作用：
+
+- 读取 GGUF 文件头的 magic 和 version。
+- 为后续读取 metadata、tensor info 和权重数据做入口。
+- 第一版只验证格式识别和基本错误处理，不加载真实大模型权重。
+
+完成情况：
+
+- 用户已手动创建 `include/firstllm/model/gguf_reader.h`。
+- 用户已手动创建 `src/model/gguf_reader.cpp`。
+- 用户已手动创建 `tests/gguf_reader_test.cpp`。
+- 用户已将 `src/model/gguf_reader.cpp` 接入 `firstllm` 静态库目标。
+- 用户已将 `firstllm_gguf_reader_test` 接入 CMake 和 CTest。
+- `GgufReader::read_header()` 已能读取 magic、version、tensor_count 和 metadata_kv_count。
+- `GgufReader::read_metadata()` 已能读取 `uint32`、`uint64`、`bool` 和 `string` metadata value。
+- 测试已覆盖正常 header、正常 metadata、空路径、文件不存在、magic 错误、截断文件、不支持的 metadata 类型和非法 bool。
+- 当前 `ctest` 结果为 `100% tests passed, 0 tests failed out of 12`。
+
+下一步：
+
+- 扩展 `GgufReader`，读取 tensor info 的基础结构。
+
+## 17. 后续章节概览
 
 ### 第 7 章：CPU add 算子
 
@@ -542,7 +592,7 @@ tests/cuda_backend_test.cpp
 
 - 逐步把基础算子组合成极小 decoder-only 推理闭环。
 
-## 17. 每章完成标准
+## 18. 每章完成标准
 
 每章完成时至少满足：
 
