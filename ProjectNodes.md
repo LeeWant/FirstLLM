@@ -27,6 +27,7 @@
 第 10 章：CUDA backend 骨架            已完成
 第 11 章：GGUF reader                  已完成首版
 第 12 章：Tiny Llama-like forward      已完成首版
+第 13 章：KV cache 与自回归生成        已完成首版
 ```
 
 当前已存在的重要文件：
@@ -39,8 +40,10 @@ include/firstllm/core/backend.h
 include/firstllm/backends/cpu_backend.h
 include/firstllm/backends/cuda_backend.h
 include/firstllm/runtime/engine.h
+include/firstllm/runtime/generator.h
 include/firstllm/model/gguf_reader.h
 include/firstllm/model/tiny_llama.h
+include/firstllm/model/kv_cache.h
 include/firstllm/firstllm.h
 include/firstllm/kernels/cpu/add.h
 include/firstllm/kernels/cpu/matmul.h
@@ -52,8 +55,10 @@ src/core/backend.cpp
 src/backends/cpu/cpu_backend.cpp
 src/backends/cuda/cuda_backend.cpp
 src/runtime/engine.cpp
+src/runtime/generator.cpp
 src/model/gguf_reader.cpp
 src/model/tiny_llama.cpp
+src/model/kv_cache.cpp
 src/kernels/cpu/add.cpp
 src/kernels/cpu/matmul.cpp
 src/kernels/cpu/softmax.cpp
@@ -65,8 +70,10 @@ tests/backend_test.cpp
 tests/cpu_backend_test.cpp
 tests/cuda_backend_test.cpp
 tests/engine_test.cpp
+tests/generator_test.cpp
 tests/gguf_reader_test.cpp
 tests/tiny_llama_test.cpp
+tests/kv_cache_test.cpp
 tests/smoke.cpp
 tests/cpu_add_test.cpp
 tests/cpu_matmul_test.cpp
@@ -79,7 +86,7 @@ tests/cpu_rms_norm_test.cpp
 ```text
 CMake configure 成功
 CMake build 成功
-CTest: 100% tests passed, 0 tests failed out of 13
+CTest: 100% tests passed, 0 tests failed out of 15
 ```
 
 ## 3. 标准学习流程
@@ -587,7 +594,53 @@ tests/tiny_llama_test.cpp
 
 - 进入第 13 章，设计 KV cache 与自回归生成的最小数据结构和单步接口。
 
-## 18. 后续章节概览
+## 18. 第 13 章：KV cache 与自回归生成
+
+状态：已完成首版。
+
+目标文件：
+
+```text
+include/firstllm/model/kv_cache.h
+src/model/kv_cache.cpp
+tests/kv_cache_test.cpp
+include/firstllm/runtime/generator.h
+src/runtime/generator.cpp
+tests/generator_test.cpp
+```
+
+作用：
+
+- 为自回归生成保存每一层历史 token 的 key/value。
+- 支持按 layer 追加一个 token 的 KV，并能按 layer/token/head/dim 读取单个元素。
+- 建立后续 attention 查询历史 KV 的状态基础。
+- 建立 greedy 自回归单步生成接口：forward -> argmax -> 记录 token。
+- 暂不做分页 KV cache、batch、GPU memory、高性能 attention、tokenizer、随机 sampler 或完整生成循环。
+
+完成情况：
+
+- Agent 接手创建 `include/firstllm/model/kv_cache.h`。
+- Agent 接手创建 `src/model/kv_cache.cpp`。
+- Agent 接手创建 `tests/kv_cache_test.cpp`。
+- 新增 `KvCacheConfig` 和 `KvCache`。
+- `KvCache::append()` 已能向指定 layer 追加一帧 `[kv_head_count, head_dim]` 的 key/value。
+- `KvCache::read_key()` 和 `KvCache::read_value()` 已能读取缓存中的单个 float32 元素。
+- `KvCache::clear()` 已能清空所有 layer 的 token 计数。
+- 测试已覆盖正常追加、按层计数、读取 key/value、容量满、未写 token、layer/head/dim 越界、空输出指针、错误 dtype、错误 rank、错误 shape、clear 和无效配置。
+- Agent 接手创建 `include/firstllm/runtime/generator.h`。
+- Agent 接手创建 `src/runtime/generator.cpp`。
+- Agent 接手创建 `tests/generator_test.cpp`。
+- 新增 `GeneratorConfig` 和 `GenerationState`。
+- `GreedyNextToken()` 已能从最后一行概率分布中选择最大概率 token。
+- `GenerateOneStep()` 已能调用 `TinyLlamaModel::forward()`，用 greedy 得到 next token，并更新 `GenerationState`。
+- 测试已覆盖 greedy 正常路径、tie 规则、空输出指针、错误 dtype/rank、单步生成状态推进、max token 限制、eos finished、空 state/next 指针、坏生成配置和错误 hidden_state。
+- 当前 `ctest` 结果为 `100% tests passed, 0 tests failed out of 15`。
+
+下一步：
+
+- 进入第 14 章，准备 tokenizer、sampler 和真实文本生成的最小接口。
+
+## 19. 后续章节概览
 
 ### 第 7 章：CPU add 算子
 
@@ -626,13 +679,13 @@ tests/tiny_llama_test.cpp
 - 读取 GGUF magic、version、metadata、tensor info，并为权重数据定位做准备。
 - 不急着完整加载权重。
 
-### 第 13 到 14 章：KV cache、tokenizer、sampler
+### 第 14 章：tokenizer、sampler、真实文本生成
 
 目标：
 
-- 在 Tiny forward 基础上逐步加入 KV cache、单步生成、tokenizer、sampler 和真实文本生成。
+- 在 Tiny forward、KV cache 和单步生成基础上逐步加入 tokenizer、sampler 和真实文本生成。
 
-## 19. 每章完成标准
+## 20. 每章完成标准
 
 每章完成时至少满足：
 

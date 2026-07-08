@@ -14,16 +14,18 @@ add_library(firstllm STATIC
   # Backend 实现。CUDA 当前只是无 SDK 依赖的骨架。
   src/backends/cpu/cpu_backend.cpp
   src/backends/cuda/cuda_backend.cpp
-  # Runtime 用户侧入口。
+  # Runtime 用户侧入口和单步生成控制流。
   src/runtime/engine.cpp
+  src/runtime/generator.cpp
   # CPU kernel 正确性基线。
   src/kernels/cpu/add.cpp
   src/kernels/cpu/matmul.cpp
   src/kernels/cpu/softmax.cpp
   src/kernels/cpu/rms_norm.cpp
-  # Model 层：GGUF 结构读取和 Tiny Llama-like forward。
+  # Model 层：GGUF 结构读取、Tiny forward 和 KV cache。
   src/model/gguf_reader.cpp
   src/model/tiny_llama.cpp
+  src/model/kv_cache.cpp
 )
 
 target_compile_features(firstllm PUBLIC cxx_std_20)
@@ -125,6 +127,18 @@ if(FIRSTLLM_BUILD_TESTS)
 
   add_test(NAME firstllm_engine_test COMMAND firstllm_engine_test)
 
+  # Runtime: greedy 单步生成测试。
+  add_executable(firstllm_generator_test
+    tests/generator_test.cpp
+  )
+
+  target_link_libraries(firstllm_generator_test
+    PRIVATE
+      firstllm
+  )
+
+  add_test(NAME firstllm_generator_test COMMAND firstllm_generator_test)
+
   # Public header: 系统级 smoke test。
   add_executable(firstllm_smoke_test
     tests/smoke.cpp
@@ -208,4 +222,16 @@ if(FIRSTLLM_BUILD_TESTS)
   )
 
   add_test(NAME firstllm_tiny_llama_test COMMAND firstllm_tiny_llama_test)
+
+  # Model: KV cache 测试。
+  add_executable(firstllm_kv_cache_test
+    tests/kv_cache_test.cpp
+  )
+
+  target_link_libraries(firstllm_kv_cache_test
+    PRIVATE
+      firstllm
+  )
+
+  add_test(NAME firstllm_kv_cache_test COMMAND firstllm_kv_cache_test)
 endif()

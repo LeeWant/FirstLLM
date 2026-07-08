@@ -29,6 +29,7 @@
 | 第 10 章：CUDA backend 骨架 | 已完成 | 2026-07-06 17:40:50 |
 | 第 11 章：GGUF reader | 已完成首版 | 2026-07-08 15:33:02 data section 与 tensor 绝对偏移已完成 |
 | 第 12 章：Tiny Llama-like forward | 已完成首版 | 2026-07-08 16:10:01 forward 闭环已完成 |
+| 第 13 章：KV cache 与自回归生成 | 已完成首版 | 2026-07-08 17:29:58 单步生成接口已完成 |
 | 文档与协作流程 | 已更新 | 2026-07-07 09:33:13 中文注释与工作流更新 |
 
 后续新增日志时，应放到对应章节下，并同步更新本索引。
@@ -1145,7 +1146,122 @@
 
 - 进入第 13 章，设计 KV cache 与自回归生成的最小数据结构和单步接口。
 
-## 18. 文档与协作流程日志
+## 18. 第 13 章：KV cache 与自回归生成
+
+### 2026-07-08 16:35:40 +08:00
+
+章节 / 阶段：第 13 章 KV cache
+
+完成内容：
+
+- 根据用户请求，Agent 接手继续推进第 13 章，完成 KV cache 首版。
+- 新增 `KvCacheConfig`，记录 layer 数、最大 token 数、KV head 数和 head_dim。
+- 新增 `KvCache`，为每层预分配 key/value cache，shape 为 `[max_token_count, kv_head_count, head_dim]`。
+- `KvCache::append()` 已能向指定 layer 追加一个 token 的 key/value。
+- `KvCache::read_key()` 和 `KvCache::read_value()` 已能按 layer/token/head/dim 读取单个 float32 元素。
+- `KvCache::token_count()` 已能查询每层已缓存 token 数。
+- `KvCache::clear()` 已能清空所有层的 token 计数，底层内存保留并由后续 append 覆盖。
+- `tests/kv_cache_test.cpp` 覆盖正常追加、按层计数、读取 key/value、容量满、未写 token、layer/head/dim 越界、空输出指针、错误 dtype、错误 rank、错误 shape、clear 和无效配置。
+
+新增文件 / 目录：
+
+- `include/firstllm/model/kv_cache.h`
+- `src/model/kv_cache.cpp`
+- `tests/kv_cache_test.cpp`
+
+修改文件：
+
+- `CMakeLists.txt`
+- `FirstLLM.md`
+- `ProjectNodes.md`
+- `agent.md`
+- `ProgressLog.md`
+
+验证情况：
+
+- CMake configure 成功。
+- Codex 沙箱内直接执行 Debug build 时，MSBuild 在 `ZERO_CHECK.vcxproj` 的 `FileTracker` 阶段触发 `拒绝访问`，与既有环境现象一致。
+- 使用提升权限重跑同一条 Debug build 命令后构建成功。
+- 单独运行 `build/Debug/firstllm_kv_cache_test.exe` 成功，输出 `kv_cache_test passed`。
+- CTest 运行成功。
+- 测试结果为 `100% tests passed, 0 tests failed out of 14`。
+- 总测试时间为 `12.15 sec`。
+
+已知问题 / Bug：
+
+- 当前 KV cache 只支持 float32 host tensor，不支持 half/bfloat16、量化 KV、GPU memory 或 batch。
+- 当前每层 token_count 独立维护，调用方需要按模型层顺序追加；后续可在生成调度层统一管理 step。
+- 当前不实现 attention，也不计算 query 对历史 KV 的注意力分数。
+- 当前不做分页 KV cache、滑动窗口、prefix cache 或内存复用优化。
+
+设计思考：
+
+- KV cache 的第一版重点是把“自回归状态会随 token 增长”这件事具象化，而不是追求性能。
+- 按 layer/token/head/dim 建立索引后，后续 attention kernel 可以明确知道历史 key/value 从哪里读。
+- `clear()` 只重置计数而不清零底层内存，符合常见缓存复用思路，也避免把清理和内存分配绑在一起。
+
+下一步：
+
+- 继续第 13 章，在 KV cache 基础上设计自回归单步生成接口。
+
+### 2026-07-08 17:29:58 +08:00
+
+章节 / 阶段：第 13 章 自回归单步生成接口
+
+完成内容：
+
+- 根据用户请求，Agent 接手完成自回归单步生成接口首版。
+- 新增 `GeneratorConfig`，记录最大 token 数、eos token id 和是否遇到 eos 后停止。
+- 新增 `GenerationState`，保存已生成 token id 序列和 finished 标记。
+- 新增 `GreedyNextToken()`，从概率分布最后一行选择最大概率 token；相同概率时保留更小 token id，保证结果稳定。
+- 新增 `GenerateOneStep()`，执行 `hidden_state -> TinyLlamaModel::forward() -> GreedyNextToken() -> 更新 GenerationState`。
+- `GenerateOneStep()` 当前要求 `hidden_state` shape 为 `[1, hidden_size]`，保持“单步生成”的边界清晰。
+- `tests/generator_test.cpp` 覆盖 greedy 正常路径、tie 规则、空输出指针、错误 dtype/rank、单步生成状态推进、max token 限制、eos finished、空 state/next 指针、坏生成配置和错误 hidden_state。
+- `include/firstllm/firstllm.h` 已纳入 `runtime/generator.h`，让最小生成接口成为公共 runtime API。
+
+新增文件 / 目录：
+
+- `include/firstllm/runtime/generator.h`
+- `src/runtime/generator.cpp`
+- `tests/generator_test.cpp`
+
+修改文件：
+
+- `CMakeLists.txt`
+- `include/firstllm/firstllm.h`
+- `FirstLLM.md`
+- `ProjectNodes.md`
+- `agent.md`
+- `ProgressLog.md`
+
+验证情况：
+
+- CMake configure 成功。
+- Codex 沙箱内直接执行 Debug build 时，MSBuild 在 `ZERO_CHECK.vcxproj` 的 `FileTracker` 阶段触发 `拒绝访问`，与既有环境现象一致。
+- 使用提升权限重跑同一条 Debug build 命令后构建成功。
+- 单独运行 `build/Debug/firstllm_generator_test.exe` 成功，输出 `generator_test passed`。
+- CTest 运行成功。
+- 测试结果为 `100% tests passed, 0 tests failed out of 15`。
+- 总测试时间为 `14.27 sec`。
+
+已知问题 / Bug：
+
+- 当前 generator 只支持 greedy argmax，不支持 temperature、top-k、top-p 或随机采样。
+- 当前 `GenerateOneStep()` 使用调用方传入的 hidden state，不负责 token id 到 embedding 的查表。
+- 当前不会把 attention key/value 写入 `KvCache`，因为 Tiny forward 首版还没有 attention 计算。
+- 当前不是完整生成循环，只完成单步状态推进。
+
+设计思考：
+
+- 第 13 章首版的重点是打通“概率分布变成 token id”的控制流。
+- `GreedyNextToken()` 独立出来后，后续 sampler 可以在同一位置替换为 temperature/top-k/top-p。
+- `GenerationState` 先只保存 token id 和 finished 标记，避免在还没有 tokenizer/sampler 前过早设计复杂状态。
+
+下一步：
+
+- 进入第 14 章，准备 tokenizer、sampler 和真实文本生成的最小接口。
+
+## 19. 文档与协作流程日志
 
 ### 2026-07-03 17:32:18 +08:00
 
