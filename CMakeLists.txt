@@ -21,8 +21,9 @@ add_library(firstllm STATIC
   src/kernels/cpu/matmul.cpp
   src/kernels/cpu/softmax.cpp
   src/kernels/cpu/rms_norm.cpp
-  # Model 层：当前读取 GGUF header、metadata 和 tensor info。
+  # Model 层：GGUF 结构读取和 Tiny Llama-like forward。
   src/model/gguf_reader.cpp
+  src/model/tiny_llama.cpp
 )
 
 target_compile_features(firstllm PUBLIC cxx_std_20)
@@ -195,4 +196,16 @@ if(FIRSTLLM_BUILD_TESTS)
   )
 
   add_test(NAME firstllm_gguf_reader_test COMMAND firstllm_gguf_reader_test)
+
+  # Model: Tiny Llama-like forward 测试。
+  add_executable(firstllm_tiny_llama_test
+    tests/tiny_llama_test.cpp
+  )
+
+  target_link_libraries(firstllm_tiny_llama_test
+    PRIVATE
+      firstllm
+  )
+
+  add_test(NAME firstllm_tiny_llama_test COMMAND firstllm_tiny_llama_test)
 endif()

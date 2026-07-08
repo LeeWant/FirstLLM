@@ -135,12 +135,13 @@ Kernels / Memory / Device APIs
 - 第 8 章：CPU matmul 算子已完成。
 - 第 9 章：CPU softmax 和 RMSNorm 已完成。
 - 第 10 章：CUDA backend 骨架已完成。
-- 第 11 章：GGUF reader 首版已完成，已完成 header、metadata key/value、tensor info、data section 对齐和 tensor 数据绝对偏移计算，下一步进入 Tiny Llama-like forward。
+- 第 11 章：GGUF reader 首版已完成，已完成 header、metadata key/value、tensor info、data section 对齐和 tensor 数据绝对偏移计算。
+- 第 12 章：Tiny Llama-like forward 首版已完成，已能串联 RMSNorm、MatMul、Add bias 和 Softmax，下一步进入 KV cache 与自回归生成。
 
 当前验证状态：
 
 ```text
-CTest: 100% tests passed, 0 tests failed out of 12
+CTest: 100% tests passed, 0 tests failed out of 13
 ```
 
 已知环境现象：

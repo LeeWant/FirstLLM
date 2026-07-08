@@ -28,6 +28,7 @@
 | 第 9 章：softmax 与 rms_norm | 已完成 | 2026-07-06 17:07:07 |
 | 第 10 章：CUDA backend 骨架 | 已完成 | 2026-07-06 17:40:50 |
 | 第 11 章：GGUF reader | 已完成首版 | 2026-07-08 15:33:02 data section 与 tensor 绝对偏移已完成 |
+| 第 12 章：Tiny Llama-like forward | 已完成首版 | 2026-07-08 16:10:01 forward 闭环已完成 |
 | 文档与协作流程 | 已更新 | 2026-07-07 09:33:13 中文注释与工作流更新 |
 
 后续新增日志时，应放到对应章节下，并同步更新本索引。
@@ -1086,7 +1087,65 @@
 
 - 第 11 章 GGUF reader 首版完成，进入第 12 章 Tiny Llama-like forward 的最小可验证路径。
 
-## 17. 文档与协作流程日志
+## 17. 第 12 章：Tiny Llama-like forward
+
+### 2026-07-08 16:10:01 +08:00
+
+章节 / 阶段：第 12 章 Tiny Llama-like forward
+
+完成内容：
+
+- 根据用户请求，Agent 接手完成 Tiny Llama-like forward 首版。
+- 新增 `TinyLlamaConfig`，记录 `hidden_size`、`vocab_size` 和 `rms_norm_epsilon`。
+- 新增 `TinyLlamaWeights`，以外部 `Tensor` 指针引用 `final_norm_weight`、`output_projection` 和 `output_bias`。
+- 新增 `TinyLlamaModel`，在 model 层建立第一条最小 forward 路径。
+- `TinyLlamaModel::forward()` 已串联 `CpuRmsNorm`、`CpuMatMul`、`CpuAdd` 和 `CpuSoftmaxLastDim`。
+- 当前 forward 输入为 `[tokens, hidden_size]`，输出为 `[tokens, vocab_size]` 的概率分布。
+- 因为 `CpuAdd` 暂不支持 broadcast，模型层会先把 `[vocab_size]` bias 展开成 `[tokens, vocab_size]` 再调用 `CpuAdd`。
+- `tests/tiny_llama_test.cpp` 使用内存中的小权重和小输入验证确定性数值结果。
+
+新增文件 / 目录：
+
+- `include/firstllm/model/tiny_llama.h`
+- `src/model/tiny_llama.cpp`
+- `tests/tiny_llama_test.cpp`
+
+修改文件：
+
+- `CMakeLists.txt`
+- `FirstLLM.md`
+- `ProjectNodes.md`
+- `agent.md`
+- `ProgressLog.md`
+
+验证情况：
+
+- CMake configure 成功。
+- Codex 沙箱内直接执行 Debug build 时，MSBuild 在 `ZERO_CHECK.vcxproj` 的 `FileTracker` 阶段触发 `拒绝访问`，与既有环境现象一致。
+- 使用提升权限重跑同一条 Debug build 命令后构建成功。
+- 单独运行 `build/Debug/firstllm_tiny_llama_test.exe` 成功，输出 `tiny_llama_test passed`。
+- CTest 运行成功。
+- 测试结果为 `100% tests passed, 0 tests failed out of 13`。
+- 总测试时间为 `9.52 sec`。
+
+已知问题 / Bug：
+
+- 当前 Tiny forward 不是完整 Transformer，不包含 attention、MLP、RoPE、KV cache、tokenizer、sampler 或真实文本生成。
+- 当前权重通过外部 `Tensor` 指针传入，不拥有权重内存，也不从 GGUF reader 加载真实权重。
+- 当前只支持 float32 host tensor，不支持 half/bfloat16、量化权重、GPU memory 或 batch 调度。
+- 当前 `output_bias` 是为了验证 `CpuAdd` 串联而保留的最小 bias；真实 Llama 输出头通常可以没有 bias。
+
+设计思考：
+
+- 第 12 章的重点不是模型完整性，而是让 model 层第一次真实地组织已有 kernel。
+- 先把 `RMSNorm -> MatMul -> Add -> Softmax` 串起来，可以验证 Tensor shape、Status 错误传播和 kernel 调用边界。
+- 后续 KV cache 和自回归生成可以接在这个 forward 之后，不需要重写前面已经验证过的基础算子。
+
+下一步：
+
+- 进入第 13 章，设计 KV cache 与自回归生成的最小数据结构和单步接口。
+
+## 18. 文档与协作流程日志
 
 ### 2026-07-03 17:32:18 +08:00
 

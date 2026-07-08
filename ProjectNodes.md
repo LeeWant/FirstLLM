@@ -26,6 +26,7 @@
 第 9 章：softmax 与 rms_norm           已完成
 第 10 章：CUDA backend 骨架            已完成
 第 11 章：GGUF reader                  已完成首版
+第 12 章：Tiny Llama-like forward      已完成首版
 ```
 
 当前已存在的重要文件：
@@ -39,6 +40,7 @@ include/firstllm/backends/cpu_backend.h
 include/firstllm/backends/cuda_backend.h
 include/firstllm/runtime/engine.h
 include/firstllm/model/gguf_reader.h
+include/firstllm/model/tiny_llama.h
 include/firstllm/firstllm.h
 include/firstllm/kernels/cpu/add.h
 include/firstllm/kernels/cpu/matmul.h
@@ -51,6 +53,7 @@ src/backends/cpu/cpu_backend.cpp
 src/backends/cuda/cuda_backend.cpp
 src/runtime/engine.cpp
 src/model/gguf_reader.cpp
+src/model/tiny_llama.cpp
 src/kernels/cpu/add.cpp
 src/kernels/cpu/matmul.cpp
 src/kernels/cpu/softmax.cpp
@@ -63,6 +66,7 @@ tests/cpu_backend_test.cpp
 tests/cuda_backend_test.cpp
 tests/engine_test.cpp
 tests/gguf_reader_test.cpp
+tests/tiny_llama_test.cpp
 tests/smoke.cpp
 tests/cpu_add_test.cpp
 tests/cpu_matmul_test.cpp
@@ -75,7 +79,7 @@ tests/cpu_rms_norm_test.cpp
 ```text
 CMake configure 成功
 CMake build 成功
-CTest: 100% tests passed, 0 tests failed out of 12
+CTest: 100% tests passed, 0 tests failed out of 13
 ```
 
 ## 3. 标准学习流程
@@ -550,7 +554,40 @@ tests/gguf_reader_test.cpp
 
 - 进入第 12 章，搭建 Tiny Llama-like forward 的最小可验证路径。
 
-## 17. 后续章节概览
+## 17. 第 12 章：Tiny Llama-like forward
+
+状态：已完成首版。
+
+目标文件：
+
+```text
+include/firstllm/model/tiny_llama.h
+src/model/tiny_llama.cpp
+tests/tiny_llama_test.cpp
+```
+
+作用：
+
+- 在 model 层建立第一条可验证的 forward 路径。
+- 串联已有 CPU kernel：RMSNorm、MatMul、Add 和 Softmax。
+- 使用内存中的小权重和小输入验证模型层如何组织 kernel 调用。
+- 暂不加载真实 GGUF 权重，不做 attention、MLP、RoPE、KV cache、tokenizer 或 sampler。
+
+完成情况：
+
+- Agent 接手创建 `include/firstllm/model/tiny_llama.h`。
+- Agent 接手创建 `src/model/tiny_llama.cpp`。
+- Agent 接手创建 `tests/tiny_llama_test.cpp`。
+- 新增 `TinyLlamaConfig`、`TinyLlamaWeights` 和 `TinyLlamaModel`。
+- `TinyLlamaModel::forward()` 已能执行 `hidden_states -> RMSNorm -> MatMul -> Add bias -> Softmax`。
+- 测试已覆盖正常 forward、softmax 概率和、空 output、错误 dtype、错误 rank、错误 output shape、缺失权重、错误 bias shape 和坏配置。
+- 当前 `ctest` 结果为 `100% tests passed, 0 tests failed out of 13`。
+
+下一步：
+
+- 进入第 13 章，设计 KV cache 与自回归生成的最小数据结构和单步接口。
+
+## 18. 后续章节概览
 
 ### 第 7 章：CPU add 算子
 
@@ -589,13 +626,13 @@ tests/gguf_reader_test.cpp
 - 读取 GGUF magic、version、metadata、tensor info，并为权重数据定位做准备。
 - 不急着完整加载权重。
 
-### 第 12 到 14 章：Tiny forward、KV cache、tokenizer、sampler
+### 第 13 到 14 章：KV cache、tokenizer、sampler
 
 目标：
 
-- 逐步把基础算子组合成极小 decoder-only 推理闭环。
+- 在 Tiny forward 基础上逐步加入 KV cache、单步生成、tokenizer、sampler 和真实文本生成。
 
-## 18. 每章完成标准
+## 19. 每章完成标准
 
 每章完成时至少满足：
 
