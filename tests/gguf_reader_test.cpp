@@ -5,8 +5,10 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <string>
 #include <variant>
+#include <vector>
 
 namespace {
 
@@ -30,6 +32,36 @@ void WriteUint64(std::ostream* output, std::uint64_t value) {
   for (int i = 0; i < 8; ++i) {
     output->put(static_cast<char>((value >> (8 * i)) & 0xff));
   }
+}
+
+// 测试用 offset 对齐函数，和 reader 里的实现保持同一语义。
+std::uint64_t AlignUpForTest(std::uint64_t offset,
+                             std::uint64_t alignment) {
+  const std::uint64_t remainder = offset % alignment;
+  if (remainder == 0) {
+    return offset;
+  }
+
+  return offset + (alignment - remainder);
+}
+
+// 写入 padding，把后续模拟权重数据推到 data section 起点。
+std::uint64_t WritePaddingToAlignment(std::ostream* output,
+                                      std::uint64_t alignment) {
+  const std::streamoff raw_offset =
+      static_cast<std::streamoff>(output->tellp());
+  assert(raw_offset >= 0);
+
+  const std::uint64_t offset = static_cast<std::uint64_t>(raw_offset);
+  const std::uint64_t aligned_offset = AlignUpForTest(offset, alignment);
+
+  // padding_count 是 tensor info 结束到 data section 起点之间的填充字节数。
+  const std::uint64_t padding_count = aligned_offset - offset;
+  for (std::uint64_t i = 0; i < padding_count; ++i) {
+    WriteUint8(output, 0);
+  }
+
+  return aligned_offset;
 }
 
 // 写入 GGUF string：长度 + 原始字节。
@@ -107,6 +139,24 @@ void WriteMetadataString(std::ostream* output,
   WriteString(output, value);
 }
 
+// 写入 tensor info：name + n_dimensions + dimensions + type + offset。
+void WriteTensorInfo(std::ostream* output,
+                     const std::string& name,
+                     const std::vector<std::uint64_t>& dimensions,
+                     firstllm::GgufTensorType type,
+                     std::uint64_t offset) {
+  WriteString(output, name);
+  WriteUint32(output, static_cast<std::uint32_t>(dimensions.size()));
+
+  // dimension 是当前写入的单个维度大小。
+  for (const std::uint64_t dimension : dimensions) {
+    WriteUint64(output, dimension);
+  }
+
+  WriteUint32(output, static_cast<std::uint32_t>(type));
+  WriteUint64(output, offset);
+}
+
 }  // namespace
 
 int main() {
@@ -181,6 +231,111 @@ int main() {
   assert(metadata_reader.metadata()[3].type ==
          firstllm::GgufMetadataValueType::kBool);
   assert(std::get<bool>(metadata_reader.metadata()[3].value));
+
+  // tensor_info_path 是包含 metadata 和 2 条 tensor info 的正常测试文件。
+  const std::filesystem::path tensor_info_path =
+      temp_dir / "firstllm_tensor_info.gguf";
+
+  // expected_data_section_offset 用于验证 reader 计算出的数据区起点。
+  std::uint64_t expected_data_section_offset = 0;
+
+  {
+    std::ofstream output(tensor_info_path, std::ios::binary);
+    assert(output);
+
+    WriteHeader(&output, kGgufMagic, 3, 2, 1);
+    WriteMetadataString(&output, "general.architecture", "llama");
+    WriteTensorInfo(&output,
+                    "token_embd.weight",
+                    {32000, 4096},
+                    firstllm::GgufTensorType::kFloat16,
+                    0);
+    WriteTensorInfo(&output,
+                    "output.weight",
+                    {4096, 32000},
+                    firstllm::GgufTensorType::kFloat32,
+                    262144);
+
+    expected_data_section_offset = WritePaddingToAlignment(&output, 32);
+
+    // 模拟真实 GGUF 中 data section 后的权重字节；reader 当前只定位，不读取。
+    WriteUint8(&output, 0xaa);
+    WriteUint8(&output, 0xbb);
+  }
+
+  // tensor_info_reader 验证 read_tensor_infos() 成功路径。
+  firstllm::GgufReader tensor_info_reader(tensor_info_path.string());
+
+  const firstllm::Status tensor_info_status =
+      tensor_info_reader.read_tensor_infos();
+
+  assert(tensor_info_status.ok());
+  assert(tensor_info_reader.header().tensor_count == 2);
+  assert(tensor_info_reader.header().metadata_kv_count == 1);
+  assert(tensor_info_reader.metadata().size() == 1);
+  assert(tensor_info_reader.tensor_infos().size() == 2);
+  assert(tensor_info_reader.data_section_offset() ==
+         expected_data_section_offset);
+
+  // 第 0 条验证 embedding 权重的名称、形状、类型、相对 offset 和绝对 offset。
+  assert(tensor_info_reader.tensor_infos()[0].name ==
+         "token_embd.weight");
+  assert(tensor_info_reader.tensor_infos()[0].dimensions.size() == 2);
+  assert(tensor_info_reader.tensor_infos()[0].dimensions[0] == 32000);
+  assert(tensor_info_reader.tensor_infos()[0].dimensions[1] == 4096);
+  assert(tensor_info_reader.tensor_infos()[0].type ==
+         firstllm::GgufTensorType::kFloat16);
+  assert(tensor_info_reader.tensor_infos()[0].offset == 0);
+  assert(tensor_info_reader.tensor_infos()[0].data_offset ==
+         expected_data_section_offset);
+
+  // 第 1 条验证输出权重的结构信息和绝对文件偏移。
+  assert(tensor_info_reader.tensor_infos()[1].name == "output.weight");
+  assert(tensor_info_reader.tensor_infos()[1].dimensions.size() == 2);
+  assert(tensor_info_reader.tensor_infos()[1].dimensions[0] == 4096);
+  assert(tensor_info_reader.tensor_infos()[1].dimensions[1] == 32000);
+  assert(tensor_info_reader.tensor_infos()[1].type ==
+         firstllm::GgufTensorType::kFloat32);
+  assert(tensor_info_reader.tensor_infos()[1].offset == 262144);
+  assert(tensor_info_reader.tensor_infos()[1].data_offset ==
+         expected_data_section_offset + 262144);
+
+  // custom_alignment_path 验证 general.alignment 会覆盖默认 32 字节对齐。
+  const std::filesystem::path custom_alignment_path =
+      temp_dir / "firstllm_custom_alignment.gguf";
+
+  std::uint64_t expected_custom_data_section_offset = 0;
+
+  {
+    std::ofstream output(custom_alignment_path, std::ios::binary);
+    assert(output);
+
+    WriteHeader(&output, kGgufMagic, 3, 1, 1);
+    WriteMetadataUint32(&output, "general.alignment", 64);
+    WriteTensorInfo(&output,
+                    "custom.weight",
+                    {4, 4},
+                    firstllm::GgufTensorType::kFloat32,
+                    16);
+
+    expected_custom_data_section_offset =
+        WritePaddingToAlignment(&output, 64);
+    WriteUint8(&output, 0xcc);
+  }
+
+  firstllm::GgufReader custom_alignment_reader(
+      custom_alignment_path.string());
+
+  const firstllm::Status custom_alignment_status =
+      custom_alignment_reader.read_tensor_infos();
+
+  assert(custom_alignment_status.ok());
+  assert(custom_alignment_reader.data_section_offset() ==
+         expected_custom_data_section_offset);
+  assert(custom_alignment_reader.tensor_infos().size() == 1);
+  assert(custom_alignment_reader.tensor_infos()[0].offset == 16);
+  assert(custom_alignment_reader.tensor_infos()[0].data_offset ==
+         expected_custom_data_section_offset + 16);
 
   // empty_path_reader 验证空路径错误。
   firstllm::GgufReader empty_path_reader("");
@@ -277,13 +432,114 @@ int main() {
   assert(invalid_bool_status.code() ==
          firstllm::ErrorCode::kInvalidArgument);
 
+  // invalid_alignment_path 验证 general.alignment 不能是 0。
+  const std::filesystem::path invalid_alignment_path =
+      temp_dir / "firstllm_invalid_alignment.gguf";
+
+  {
+    std::ofstream output(invalid_alignment_path, std::ios::binary);
+    assert(output);
+
+    WriteHeader(&output, kGgufMagic, 3, 0, 1);
+    WriteMetadataUint32(&output, "general.alignment", 0);
+  }
+
+  firstllm::GgufReader invalid_alignment_reader(
+      invalid_alignment_path.string());
+
+  const firstllm::Status invalid_alignment_status =
+      invalid_alignment_reader.read_tensor_infos();
+
+  assert(!invalid_alignment_status.ok());
+  assert(invalid_alignment_status.code() ==
+         firstllm::ErrorCode::kInvalidArgument);
+
+  // invalid_dimension_count_path 验证 tensor 维度数量不能超过当前上限。
+  const std::filesystem::path invalid_dimension_count_path =
+      temp_dir / "firstllm_invalid_dimension_count.gguf";
+
+  {
+    std::ofstream output(invalid_dimension_count_path, std::ios::binary);
+    assert(output);
+
+    WriteHeader(&output, kGgufMagic, 3, 1, 0);
+    WriteString(&output, "invalid_tensor");
+    WriteUint32(&output, 5);
+  }
+
+  firstllm::GgufReader invalid_dimension_count_reader(
+      invalid_dimension_count_path.string());
+
+  const firstllm::Status invalid_dimension_count_status =
+      invalid_dimension_count_reader.read_tensor_infos();
+
+  assert(!invalid_dimension_count_status.ok());
+  assert(invalid_dimension_count_status.code() ==
+         firstllm::ErrorCode::kInvalidArgument);
+
+  // truncated_tensor_info_path 验证 tensor info 读取到一半会失败。
+  const std::filesystem::path truncated_tensor_info_path =
+      temp_dir / "firstllm_truncated_tensor_info.gguf";
+
+  {
+    std::ofstream output(truncated_tensor_info_path, std::ios::binary);
+    assert(output);
+
+    WriteHeader(&output, kGgufMagic, 3, 1, 0);
+    WriteString(&output, "truncated_tensor");
+    WriteUint32(&output, 2);
+    WriteUint64(&output, 4096);
+  }
+
+  firstllm::GgufReader truncated_tensor_info_reader(
+      truncated_tensor_info_path.string());
+
+  const firstllm::Status truncated_tensor_info_status =
+      truncated_tensor_info_reader.read_tensor_infos();
+
+  assert(!truncated_tensor_info_status.ok());
+  assert(truncated_tensor_info_status.code() ==
+         firstllm::ErrorCode::kInvalidArgument);
+
+  // overflow_tensor_offset_path 验证相对 offset 溢出时不会产生错误绝对偏移。
+  const std::filesystem::path overflow_tensor_offset_path =
+      temp_dir / "firstllm_overflow_tensor_offset.gguf";
+
+  {
+    std::ofstream output(overflow_tensor_offset_path, std::ios::binary);
+    assert(output);
+
+    WriteHeader(&output, kGgufMagic, 3, 1, 0);
+    WriteTensorInfo(&output,
+                    "overflow_tensor",
+                    {1},
+                    firstllm::GgufTensorType::kFloat32,
+                    std::numeric_limits<std::uint64_t>::max());
+  }
+
+  firstllm::GgufReader overflow_tensor_offset_reader(
+      overflow_tensor_offset_path.string());
+
+  const firstllm::Status overflow_tensor_offset_status =
+      overflow_tensor_offset_reader.read_tensor_infos();
+
+  assert(!overflow_tensor_offset_status.ok());
+  assert(overflow_tensor_offset_status.code() ==
+         firstllm::ErrorCode::kInvalidArgument);
+
   // 清理测试产生的临时文件。
   std::filesystem::remove(valid_path);
   std::filesystem::remove(metadata_path);
+  std::filesystem::remove(tensor_info_path);
+  std::filesystem::remove(custom_alignment_path);
   std::filesystem::remove(wrong_magic_path);
   std::filesystem::remove(truncated_path);
   std::filesystem::remove(unsupported_path);
   std::filesystem::remove(invalid_bool_path);
+  std::filesystem::remove(invalid_alignment_path);
+  std::filesystem::remove(invalid_dimension_count_path);
+  std::filesystem::remove(truncated_tensor_info_path);
+  std::filesystem::remove(overflow_tensor_offset_path);
 
   std::cout << "gguf_reader_test passed\n";
   return 0;

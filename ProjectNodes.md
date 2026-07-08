@@ -25,7 +25,7 @@
 第 8 章：CPU matmul 算子               已完成
 第 9 章：softmax 与 rms_norm           已完成
 第 10 章：CUDA backend 骨架            已完成
-第 11 章：GGUF metadata reader         进行中
+第 11 章：GGUF reader                  已完成首版
 ```
 
 当前已存在的重要文件：
@@ -106,7 +106,7 @@ CTest: 100% tests passed, 0 tests failed out of 12
 第 8 章：CPU matmul 算子
 第 9 章：softmax 与 rms_norm
 第 10 章：CUDA backend 骨架
-第 11 章：GGUF metadata reader
+第 11 章：GGUF reader
 第 12 章：Tiny Llama-like forward
 第 13 章：KV cache 与自回归生成
 第 14 章：tokenizer、sampler、真实文本生成
@@ -511,11 +511,11 @@ tests/cuda_backend_test.cpp
 
 下一步：
 
-- 进入第 11 章，创建 GGUF metadata reader。
+- 进入第 11 章，创建 GGUF reader。
 
-## 16. 第 11 章：GGUF metadata reader
+## 16. 第 11 章：GGUF reader
 
-状态：进行中。
+状态：已完成首版。
 
 目标文件：
 
@@ -540,12 +540,15 @@ tests/gguf_reader_test.cpp
 - 用户已将 `firstllm_gguf_reader_test` 接入 CMake 和 CTest。
 - `GgufReader::read_header()` 已能读取 magic、version、tensor_count 和 metadata_kv_count。
 - `GgufReader::read_metadata()` 已能读取 `uint32`、`uint64`、`bool` 和 `string` metadata value。
-- 测试已覆盖正常 header、正常 metadata、空路径、文件不存在、magic 错误、截断文件、不支持的 metadata 类型和非法 bool。
+- `GgufReader::read_tensor_infos()` 已能读取 tensor 名称、维度、类型和 offset。
+- `GgufReader::data_section_offset()` 已能返回对齐后的 data section 文件起点。
+- `GgufTensorInfo::data_offset` 已能保存每个 tensor 数据在文件中的绝对偏移。
+- 测试已覆盖正常 header、正常 metadata、正常 tensor info、默认对齐、自定义 `general.alignment`、空路径、文件不存在、magic 错误、截断文件、不支持的 metadata 类型、非法 bool、非法 alignment、非法 tensor 维度数量、截断 tensor info 和 tensor offset 溢出。
 - 当前 `ctest` 结果为 `100% tests passed, 0 tests failed out of 12`。
 
 下一步：
 
-- 扩展 `GgufReader`，读取 tensor info 的基础结构。
+- 进入第 12 章，搭建 Tiny Llama-like forward 的最小可验证路径。
 
 ## 17. 后续章节概览
 
@@ -579,11 +582,11 @@ tests/gguf_reader_test.cpp
 - CUDA 作为可选能力。
 - 没有 CUDA 时 CPU-only 构建不受影响。
 
-### 第 11 章：GGUF metadata reader
+### 第 11 章：GGUF reader
 
 目标：
 
-- 读取 GGUF magic、version、metadata、tensor info。
+- 读取 GGUF magic、version、metadata、tensor info，并为权重数据定位做准备。
 - 不急着完整加载权重。
 
 ### 第 12 到 14 章：Tiny forward、KV cache、tokenizer、sampler

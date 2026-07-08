@@ -21,7 +21,7 @@ add_library(firstllm STATIC
   src/kernels/cpu/matmul.cpp
   src/kernels/cpu/softmax.cpp
   src/kernels/cpu/rms_norm.cpp
-  # Model 层：当前只读取 GGUF header 和部分 metadata。
+  # Model 层：当前读取 GGUF header、metadata 和 tensor info。
   src/model/gguf_reader.cpp
 )
 

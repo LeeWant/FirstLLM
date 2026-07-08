@@ -27,7 +27,7 @@
 | 第 8 章：CPU matmul 算子 | 已完成 | 2026-07-06 16:31:05 |
 | 第 9 章：softmax 与 rms_norm | 已完成 | 2026-07-06 17:07:07 |
 | 第 10 章：CUDA backend 骨架 | 已完成 | 2026-07-06 17:40:50 |
-| 第 11 章：GGUF metadata reader | 进行中 | 2026-07-06 18:18:27 metadata key/value 已完成 |
+| 第 11 章：GGUF reader | 已完成首版 | 2026-07-08 15:33:02 data section 与 tensor 绝对偏移已完成 |
 | 文档与协作流程 | 已更新 | 2026-07-07 09:33:13 中文注释与工作流更新 |
 
 后续新增日志时，应放到对应章节下，并同步更新本索引。
@@ -793,6 +793,7 @@
 修改文件：
 
 - `CMakeLists.txt`
+- `agent.md`
 - `ProgressLog.md`
 - `ProjectNodes.md`
 - `FirstLLM.md`
@@ -876,9 +877,9 @@
 
 下一步：
 
-- 进入第 11 章，创建 GGUF metadata reader。
+- 进入第 11 章，创建 GGUF reader。
 
-## 16. 第 11 章：GGUF metadata reader
+## 16. 第 11 章：GGUF reader
 
 ### 2026-07-06 17:59:26 +08:00
 
@@ -983,6 +984,108 @@
 
 - 继续第 11 章，扩展 tensor info 读取。
 
+### 2026-07-07 09:59:37 +08:00
+
+章节 / 阶段：第 11 章 GGUF tensor info reader
+
+完成内容：
+
+- 根据当前第 11 章路线，Agent 接手完成 GGUF tensor info 读取。
+- 新增 `GgufTensorType`，用于命名常见 GGML tensor type 编号。
+- 新增 `GgufTensorInfo`，保存 tensor 名称、维度列表、类型和数据 offset。
+- `GgufReader` 已暴露 `tensor_infos()` 和 `read_tensor_infos()`。
+- `read_tensor_infos()` 会依次读取 header、metadata 和 tensor info，但不会读取真实权重数据。
+- tensor info 读取会校验维度数量不能为 0 或超过当前上限，也会拒绝维度大小为 0 的异常数据。
+- `tests/gguf_reader_test.cpp` 已扩展正常 tensor info 文件、非法维度数量和截断 tensor info 三类测试。
+
+修改文件：
+
+- `include/firstllm/model/gguf_reader.h`
+- `src/model/gguf_reader.cpp`
+- `tests/gguf_reader_test.cpp`
+- `CMakeLists.txt`
+- `ProgressLog.md`
+- `ProjectNodes.md`
+- `FirstLLM.md`
+
+验证情况：
+
+- CMake build 成功。
+- CTest 运行成功。
+- 测试结果为 `100% tests passed, 0 tests failed out of 12`。
+- `firstllm_gguf_reader_test` 与此前全部测试均通过。
+- 总测试时间为 `289.55 sec`。
+
+已知问题 / Bug：
+
+- Codex 沙箱内执行 MSBuild 时仍会在文件跟踪阶段遇到 `拒绝访问`。
+- 使用提升权限重新运行同一 build 命令后构建成功，说明该问题与当前代码无关，更像是构建工具访问权限限制。
+- 当前 GGUF reader 仍不支持 array metadata、float metadata、int metadata、data section 对齐计算、真实权重读取或 mmap。
+
+设计思考：
+
+- tensor info 是权重加载前的索引层：它告诉我们有哪些 tensor、每个 tensor 的形状、类型和相对偏移。
+- 本阶段只保存结构信息，不读取权重字节，可以保持测试文件很小，也避免过早引入大模型文件依赖。
+- 暂时不解释量化 block 布局，只保存 type 编号；真正加载权重时再处理不同 tensor type 的字节布局。
+
+下一步：
+
+- 继续第 11 章，计算 data section 起点与 tensor 数据绝对偏移。
+
+### 2026-07-08 15:33:02 +08:00
+
+章节 / 阶段：第 11 章 GGUF data section 与 tensor 数据偏移
+
+完成内容：
+
+- 根据用户请求，Agent 接手完成 GGUF data section 对齐和 tensor 数据绝对偏移计算。
+- `GgufReader` 新增 `data_section_offset()`，用于返回对齐后的 data section 文件绝对起点。
+- `GgufTensorInfo` 新增 `data_offset`，用于保存 tensor 数据在整个 GGUF 文件中的绝对偏移。
+- `read_tensor_infos()` 现在会在读取 header、metadata 和 tensor info 后，根据 `general.alignment` 计算 data section 起点。
+- 当 GGUF 文件没有 `general.alignment` metadata 时，reader 使用默认 32 字节对齐。
+- reader 会拒绝 `general.alignment = 0`，也会拒绝 tensor 相对 offset 加上 data section 起点后的 uint64 溢出。
+- `tests/gguf_reader_test.cpp` 已扩展默认对齐、自定义 `general.alignment`、非法 alignment 和 tensor offset 溢出测试。
+
+新增文件 / 目录：
+
+- 无。
+
+修改文件：
+
+- `include/firstllm/model/gguf_reader.h`
+- `src/model/gguf_reader.cpp`
+- `tests/gguf_reader_test.cpp`
+- `FirstLLM.md`
+- `ProjectNodes.md`
+- `agent.md`
+- `ProgressLog.md`
+
+验证情况：
+
+- CMake configure 成功。
+- Codex 沙箱内直接执行 Debug build 时，MSBuild 在 `ZERO_CHECK.vcxproj` 的 `FileTracker` 阶段触发 `拒绝访问`，与既有环境现象一致。
+- 使用提升权限重跑同一条 Debug build 命令后构建成功。
+- 单独运行 `build/Debug/firstllm_gguf_reader_test.exe` 成功，输出 `gguf_reader_test passed`。
+- CTest 运行成功。
+- 测试结果为 `100% tests passed, 0 tests failed out of 12`。
+- 总测试时间为 `265.14 sec`。
+
+已知问题 / Bug：
+
+- 当前 GGUF reader 仍不支持 array metadata、float metadata、int metadata、真实权重读取或 mmap。
+- 当前只计算 tensor 数据偏移，不校验真实权重字节长度，也不解释量化 block 布局。
+- MSBuild `FileTracker` 权限问题仍是当前 Codex 沙箱内的已知环境现象，不是源码错误。
+
+设计思考：
+
+- GGUF tensor info 中的 `offset` 是相对 data section 的偏移，不能直接当作文件绝对位置使用。
+- 先把 data section 起点和每个 tensor 的绝对偏移算清楚，可以为后续 ModelLoader 或权重 mmap 留出稳定索引。
+- 本阶段继续不读取真实权重，保持 GGUF reader 的职责集中在结构解析和权重定位。
+
+下一步：
+
+- 第 11 章 GGUF reader 首版完成，进入第 12 章 Tiny Llama-like forward 的最小可验证路径。
+
 ## 17. 文档与协作流程日志
 
 ### 2026-07-03 17:32:18 +08:00
@@ -1062,3 +1165,27 @@
 下一步：
 
 - 回到第 11 章 GGUF reader，继续实现 tensor info 读取。
+
+### 2026-07-08 15:33:02 +08:00
+
+章节 / 阶段：文档状态同步
+
+完成内容：
+
+- Agent 根据本次 GGUF data section 与 tensor 数据偏移实现结果，同步更新 `FirstLLM.md`、`ProjectNodes.md` 和 `agent.md`。
+- 当前文档均指向：第 11 章 GGUF reader 首版已完成，下一步进入第 12 章 Tiny Llama-like forward。
+
+修改文件：
+
+- `FirstLLM.md`
+- `ProjectNodes.md`
+- `agent.md`
+- `ProgressLog.md`
+
+验证情况：
+
+- 文档同步与代码验证使用同一次 CTest 结果：`100% tests passed, 0 tests failed out of 12`。
+
+下一步：
+
+- 进入第 12 章 Tiny Llama-like forward 的最小可验证路径。

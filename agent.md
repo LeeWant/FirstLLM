@@ -135,7 +135,7 @@ Kernels / Memory / Device APIs
 - 第 8 章：CPU matmul 算子已完成。
 - 第 9 章：CPU softmax 和 RMSNorm 已完成。
 - 第 10 章：CUDA backend 骨架已完成。
-- 第 11 章：GGUF reader 进行中，已完成 header 和 metadata key/value 读取，下一步是 tensor info。
+- 第 11 章：GGUF reader 首版已完成，已完成 header、metadata key/value、tensor info、data section 对齐和 tensor 数据绝对偏移计算，下一步进入 Tiny Llama-like forward。
 
 当前验证状态：
 
